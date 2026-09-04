@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNC 프로그램 도구 — 2026 전남광주 청년 AI 솔버톤</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Hahmlet:wght@600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand-left">
+      <div class="brand"><span class="prompt">&gt;_</span> CNC 프로그램 도구</div>
+      <div class="brand-corp">
+        <span class="corp-name">팀 A4</span>
+      </div>
+    </div>
+    <div class="brand-right">
+      <span class="brand-badge">2026 전남광주 청년 AI 솔버톤 · 본선대회</span>
+      <button class="qr-btn" id="qrBtn" aria-label="접속 QR코드 보기">
+        <img src="assets/qr-site.svg" alt="QR코드" class="qr-thumb">
+        <span>다른 기기에서<br>QR로 접속</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="qr-modal" id="qrModal" hidden>
+    <div class="qr-box">
+      <button class="qr-close" id="qrClose" aria-label="닫기">✕</button>
+      <img src="assets/qr-site.svg" alt="접속 QR코드" class="qr-big">
+      <div class="qr-title">CNC 프로그램 도구</div>
+      <div class="qr-url">cnc-solverthon.netlify.app</div>
+      <p class="qr-desc">휴대폰 카메라로 스캔하면 바로 열립니다</p>
+    </div>
+  </div>
+
+  <section class="features" aria-label="기능 소개">
+    <button class="feat" data-goto="convert"><span class="fnum">01</span><b>매크로 변환</b><span>수십 줄 반복 패스를 WHILE 매크로로, 서브프로그램은 메인 파일 하나로 인라인</span></button>
+    <button class="feat" data-goto="machine"><span class="fnum">02</span><b>기종 변환 R↔J</b><span>헤더·코드·밀링 축을 규칙으로 치환하고, 구간별로 재검토 후 선택 적용</span></button>
+    <button class="feat" data-goto="generate"><span class="fnum">03</span><b>AI 사이즈 생성</b><span>짧은·긴 샘플에서 학습한 규칙으로, 원하는 길이의 프로그램을 AI가 만들어냅니다</span></button>
+    <button class="feat" data-goto="cycle"><span class="fnum">04</span><b>사이클 생성</b><span>샘플(1개씩)과 양산(수량) 자동 생산 스케줄 프로그램 작성</span></button>
+    <button class="feat" data-goto="compare"><span class="fnum">05</span><b>비교 · 검증</b><span>기계에 넣기 전, 기존 검증 프로그램과 줄 단위로 대조</span></button>
+    <button class="feat" data-goto="shape"><span class="fnum">06</span><b>형상 비교</b><span>두 프로그램의 실제 가공 형상(단면)을 그려서 눈으로 비교</span></button>
+  </section>
+
+  <div id="tool"></div>
+  <nav class="tabs" role="tablist">
+    <button class="active" data-tab="convert" role="tab" aria-selected="true">① 매크로 변환</button>
+    <button data-tab="machine" role="tab" aria-selected="false">② 기종 변환 (R↔J)</button>
+    <button data-tab="generate" role="tab" aria-selected="false">③ AI 사이즈 생성</button>
+    <button data-tab="cycle" role="tab" aria-selected="false">④ 사이클 생성 (수량)</button>
+    <button data-tab="compare" role="tab" aria-selected="false">⑤ 비교 · 검증</button>
+    <button data-tab="shape" role="tab" aria-selected="false">⑥ 형상 비교</button>
+  </nav>
+
+  <!-- ═══════ 탭 1: 매크로 변환 ═══════ -->
+  <section id="panel-convert" class="panel active" role="tabpanel">
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <h2>프로그램 파일 올리기<small>메인·서브를 한 번에 — 자동으로 구분합니다</small></h2>
+          <div class="dropzone" id="convDrop" tabindex="0" role="button" aria-label="파일을 여기에 끌어다 놓거나 클릭해서 선택">
+            <div class="dz-icon">⬇</div>
+            <div class="dz-main">여기로 파일을 끌어다 놓으세요</div>
+            <div class="dz-sub">메인(O35xx)과 서브(O0120·0121·0122·0123)를 한꺼번에 · 여러 개 선택 가능<br>또는 <u>클릭해서 파일 선택</u></div>
+            <input type="file" id="convFiles" multiple hidden>
+          </div>
+          <div class="filelist" id="convFileList"></div>
+        </div>
+
+        <div class="card" id="convManualCard">
+          <h2>메인 프로그램<small>직접 붙여넣기 (파일로 올렸다면 비워둬도 됩니다)</small></h2>
+          <textarea class="code" id="mainInput" spellcheck="false" placeholder="%
+O3540(3.5mm Locking Screw 40mm)
+..." style="min-height:180px"></textarea>
+          <div class="sublist" id="subList" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card">
+          <h2>옵션</h2>
+          <label class="check"><input type="checkbox" id="optDwell" checked> 나사 시작 위치에 드웰(G4U0.5) 넣기 — 원본에 없어도 추가</label>
+          <button class="primary" id="btnConvert">매크로 변환 실행</button>
+          <button class="ghost try" id="exConvert">🧪 예제로 체험해보기</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card result-card">
+          <h2>변환 결과<small>매크로(변수·루프) 줄은 녹색으로 표시</small></h2>
+          <div class="report" id="convReport"></div>
+          <div class="codeview" id="convOutput" aria-live="polite"><div class="cv-empty">왼쪽에서 파일을 올리고 <b>매크로 변환 실행</b>을 누르면 결과가 여기에 표시됩니다.</div></div>
+          <div class="row">
+            <div><button class="primary" id="btnConvDownload" disabled>다운로드</button></div>
+            <div><button class="ghost" id="btnConvCopy" disabled>클립보드 복사</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ 탭 2: 기종 변환 ═══════ -->
+  <section id="panel-machine" class="panel" role="tabpanel">
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <h2>변환할 프로그램</h2>
+          <div class="filebar">
+            <button class="ghost" id="btnMcFile">파일 열기</button>
+            <input type="file" id="mcFile" hidden>
+            <span class="name" id="mcFileName">파일을 끌어다 놓거나 직접 붙여넣기</span>
+          </div>
+          <textarea class="code drop-area" id="mcInput" spellcheck="false" placeholder="여기로 프로그램 파일을 끌어다 놓거나 붙여넣으세요"></textarea>
+        </div>
+        <div class="card">
+          <h2>변환 방향 · 옵션</h2>
+          <div class="row">
+            <div>
+              <label for="mcDir">변환 방향</label>
+              <select id="mcDir">
+                <option value="R2J">R (20R-IV) → J (20J)</option>
+                <option value="J2R">J (20J) → R (20R-IV)</option>
+              </select>
+            </div>
+            <div>
+              <label for="mcLen">제품 길이 (mm) — 비우면 프로그램 주석에서 자동 감지</label>
+              <input type="number" id="mcLen" step="0.5" placeholder="자동">
+            </div>
+          </div>
+          <label for="mcMillMode">E/M 밀링 구간 처리 방식</label>
+          <select id="mcMillMode">
+            <option value="axisswap" selected>축·부호 치환 (기본값) — X↔Y 교환·절삭축 부호 반전, 변환 후 검증 단계에서 재검토</option>
+            <option value="library">등록된 블록 쌍으로만 교체 (일치 없으면 원문 유지)</option>
+            <option value="keep">변환하지 않음 (원문 유지)</option>
+          </select>
+          <p class="hint">치환 방식은 좌표를 규칙(X↔Y 교환·절삭축 부호 반전)으로 계산해 바꿉니다. 변환 후 아래 "밀링 치환 검증"에서 구간별로 원본과 나란히 비교하고, 치환 결과 / 등록된 검증 블록 / 원문 중에서 선택할 수 있습니다.</p>
+          <button class="primary" id="btnMachine">기종 변환 실행</button>
+          <button class="ghost try" id="exMachine">🧪 예제로 체험해보기</button>
+          <p class="hint">자동 적용 규칙: 헤더(G266·G125·G0B90.0M38·G300) 추가/제거 — G266은 W=길이+0.5, Z=183−길이 · G97↔G99 · G125Z0↔G120Z0 · T700/T7↔T3200/T22 · N200 숏컷 · 공구 주석</p>
+        </div>
+
+        <div class="card">
+          <h2>밀링 블록 관리<small>제품별 R↔J 블록 쌍 — 이 PC 브라우저에 저장됩니다</small></h2>
+          <div class="sublist" id="blockList"></div>
+          <details style="margin-top:12px">
+            <summary style="cursor:pointer;color:var(--accent);font-size:14px">+ 새 제품 블록 쌍 등록</summary>
+            <label for="nbName">제품/블록 이름</label>
+            <input type="text" id="nbName" placeholder="예: 4.0 Cortex Screw E/M (본가공)">
+            <label for="nbR">R (20R-IV) 밀링 블록 — 타이틀 줄부터 M9까지 그대로 붙여넣기</label>
+            <textarea class="code" id="nbR" style="min-height:140px" spellcheck="false" placeholder="N7(E/M 4.0)
+T700
+M8
+...
+M9"></textarea>
+            <label for="nbJ">J (20J) 밀링 블록 — 같은 공정의 J 버전</label>
+            <textarea class="code" id="nbJ" style="min-height:140px" spellcheck="false"></textarea>
+            <button class="ghost" id="btnAddBlock" style="margin-top:10px">블록 쌍 등록</button>
+          </details>
+          <div class="row">
+            <div><button class="ghost" id="btnExportBlocks">블록 내보내기 (JSON)</button></div>
+            <div><button class="ghost" id="btnImportBlocks">블록 가져오기</button><input type="file" id="importBlocksFile" hidden accept=".json"></div>
+          </div>
+          <p class="hint">등록한 블록은 브라우저(localStorage)에 저장됩니다. 다른 PC와 공유하려면 [내보내기]로 JSON 파일을 만들어 옮기세요.</p>
+        </div>
+      </div>
+      <div>
+        <div class="card result-card">
+          <h2>변환 결과</h2>
+          <div class="report" id="mcReport"></div>
+          <div class="codeview" id="mcOutput" aria-live="polite"><div class="cv-empty">왼쪽에 프로그램을 넣고 <b>기종 변환 실행</b>을 누르면 결과가 여기에 표시됩니다.</div></div>
+          <div class="row">
+            <div><button class="primary" id="btnMcDownload" disabled>다운로드</button></div>
+            <div><button class="ghost" id="btnMcCopy" disabled>클립보드 복사</button></div>
+            <div><button class="ghost" id="btnMcToCompare" disabled>⑤ 비교 탭으로 보내기</button></div>
+          </div>
+        </div>
+        <div class="card" id="mcReviewCard" hidden>
+          <h2>밀링 치환 검증<small>구간별로 원본과 비교하고 적용 방식을 선택하세요 — 선택하면 결과에 즉시 반영됩니다</small></h2>
+          <div id="mcReview"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ 탭 3: 프로그램 생성 ═══════ -->
+  <section id="panel-generate" class="panel" role="tabpanel">
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <h2>생성 방식 선택</h2>
+          <div class="row">
+            <div>
+              <label for="genMode">방식</label>
+              <select id="genMode">
+                <option value="dedicated">전용 — 3.5mm Locking Screw (검증된 규칙)</option>
+                <option value="universal">범용 — 샘플 2개로 규칙 학습 (모든 제품)</option>
+              </select>
+            </div>
+          </div>
+          <p class="hint" id="genModeHint">전용: 3.5mm 나사 규칙으로 즉시 생성. 범용: 제일 작은·큰 사이즈 프로그램 2개를 올리면 규칙을 파악해 중간 사이즈를 만듭니다.</p>
+        </div>
+
+        <div class="card" id="genDedicated">
+          <h2>AI 사이즈 생성<small>짧은·긴 샘플에서 학습한 규칙으로 원하는 길이를 생성 · 3.5mm Locking Screw · 20J</small></h2>
+          <div class="row">
+            <div>
+              <label for="genLen">제품 길이 (mm)</label>
+              <input type="number" id="genLen" value="42" min="10" max="100" step="0.5">
+            </div>
+            <div>
+              <label for="genONo">프로그램 번호 (자동)</label>
+              <input type="text" id="genONo" placeholder="O3542">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="genLastW">마지막 나사 세그먼트 W <span class="badge">사용자 조정 가능</span></label>
+              <input type="number" id="genLastW" step="0.5" min="2" max="9">
+              <p class="hint" id="genLastWHint"></p>
+            </div>
+            <div>
+              <label for="genThreadStyle">마지막 나사 형상</label>
+              <select id="genThreadStyle">
+                <option value="auto">자동 (기본: 일반형)</option>
+                <option value="plain">일반형 (G32W{W})</option>
+                <option value="th1">TH1 선단 형상 재사용 (14mm 방식)</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="genDwell" checked> 나사 시작 위치에 드웰(G4U0.5) 넣기</label>
+          <button class="primary" id="btnGenerate">AI로 사이즈 생성</button>
+          <button class="ghost try" id="exGenerate">🧪 예제로 체험해보기</button>
+          <p class="hint">규칙: 마지막 선삭 Z = L−3.56 · 로킹나사 Z = L−4.52 · 백터닝 Z = L−1.5 · 절단 Z = L+12.5 · 복귀 W = 183−L · 세그먼트 6.0mm 단위 (실제 프로그램 28개로 검증)</p>
+        </div>
+        <div class="card" id="genDedicatedInfo">
+          <h2>생성 정보</h2>
+          <div class="meta" id="genMeta">아직 생성 전입니다.</div>
+          <div class="report" id="genReport"></div>
+        </div>
+
+        <!-- 범용 모드 입력 -->
+        <div class="card" id="genUniversal" hidden>
+          <h2>샘플 프로그램 2개<small>제일 작은 사이즈와 제일 큰 사이즈를 올리면 규칙을 학습합니다</small></h2>
+          <div class="row">
+            <div>
+              <label for="uniLenA">① 작은 사이즈 길이 (mm)</label>
+              <input type="number" id="uniLenA" step="0.5" placeholder="예: 10">
+            </div>
+            <div>
+              <label for="uniLenB">② 큰 사이즈 길이 (mm)</label>
+              <input type="number" id="uniLenB" step="0.5" placeholder="예: 100">
+            </div>
+          </div>
+          <label for="uniA">① 작은 사이즈 프로그램</label>
+          <textarea class="code drop-area" id="uniA" spellcheck="false" placeholder="여기로 제일 작은 사이즈 프로그램을 끌어다 놓으세요" style="min-height:120px"></textarea>
+          <label for="uniB">② 큰 사이즈 프로그램</label>
+          <textarea class="code drop-area" id="uniB" spellcheck="false" placeholder="여기로 제일 큰 사이즈 프로그램을 끌어다 놓으세요" style="min-height:120px"></textarea>
+          <div class="row">
+            <div>
+              <label for="uniTarget">만들 중간 사이즈 (mm)</label>
+              <input type="number" id="uniTarget" step="0.5" placeholder="예: 55">
+            </div>
+          </div>
+          <button class="primary" id="btnUniLearn">규칙 학습 후 생성</button>
+          <button class="ghost try" id="exUniversal">🧪 예제로 체험해보기</button>
+          <div class="report" id="uniReport" style="margin-top:10px"></div>
+          <div id="uniRules" style="margin-top:6px"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card result-card">
+          <h2>생성 결과</h2>
+          <div class="codeview" id="genOutput" aria-live="polite"><div class="cv-empty">길이를 입력하고 <b>AI로 사이즈 생성</b>을 누르면 프로그램이 여기에 생성됩니다.</div></div>
+          <div class="row">
+            <div><button class="primary" id="btnGenDownload" disabled>다운로드</button></div>
+            <div><button class="ghost" id="btnGenCopy" disabled>클립보드 복사</button></div>
+            <div><button class="ghost" id="btnGenToCompare" disabled>⑤ 비교 탭으로 보내기</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ 탭 4: 사이클 생성 ═══════ -->
+  <section id="panel-cycle" class="panel" role="tabpanel">
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <h2>생산 스케줄<small>O5582 (MACRO AUTO SIZE CYCLE) 형식 — 슬롯 순서대로 수량만큼 자동 생산</small></h2>
+          <div class="table-scroll" style="overflow-x:auto">
+            <table style="width:100%; border-collapse:collapse; font-size:13.5px" id="cycTable">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:6px 8px;color:var(--ink-faint);font-weight:500">슬롯</th>
+                  <th style="text-align:left;padding:6px 8px;color:var(--ink-faint);font-weight:500">프로그램 O번호</th>
+                  <th style="text-align:left;padding:6px 8px;color:var(--ink-faint);font-weight:500">수량</th>
+                </tr>
+              </thead>
+              <tbody id="cycSlots"></tbody>
+            </table>
+          </div>
+          <p class="hint">프로그램 O번호를 넣으면 사이즈 주석(예: O3524 → (24mm))이 자동으로 붙습니다. 수량이 0이거나 비어 있으면 미사용 슬롯(수량 0.0 / O1000)으로 들어갑니다.</p>
+          <div class="row">
+            <div>
+              <label for="cycMode">생성 종류</label>
+              <select id="cycMode">
+                <option value="both">샘플 + 양산 (둘 다)</option>
+                <option value="sample">샘플만 (1개씩 가공 · O4393 형식)</option>
+                <option value="prod">양산만 (수량 생산 · O5582 형식)</option>
+              </select>
+            </div>
+            <div>
+              <label for="cycMachine">기종</label>
+              <select id="cycMachine">
+                <option value="R">R (20R-IV) — G125Z0</option>
+                <option value="J">J (20J) — G120Z0</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div id="cycSampleNoWrap">
+              <label for="cycSampleONo">샘플 프로그램 번호</label>
+              <input type="text" id="cycSampleONo" value="4393">
+            </div>
+            <div id="cycProdNoWrap">
+              <label for="cycONo">양산 프로그램 번호</label>
+              <input type="text" id="cycONo" value="5582">
+            </div>
+          </div>
+          <button class="primary" id="btnCycle">사이클 프로그램 생성</button>
+          <button class="ghost try" id="exCycle">🧪 예제로 체험해보기</button>
+          <p class="hint">구조: 카운터 #511~519(영구 변수 — 중단 후 재시작 시 완료 슬롯 자동 스킵) · 목표 수량 #501~509 · 프로그램 번호 #101~109 · 슬롯 종료 시 다음 사이즈 첫 개 선가공 + O1000 호출</p>
+        </div>
+        <div class="card">
+          <h2>생성 정보</h2>
+          <div class="meta" id="cycMeta">아직 생성 전입니다.</div>
+          <div class="report" id="cycReport"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card result-card">
+          <h2>생성 결과</h2>
+          <div id="cycViewTabs" style="display:none; gap:8px; margin-bottom:8px">
+            <button class="ghost" id="btnCycViewSample" style="padding:5px 14px">샘플 (Q/A) 보기</button>
+            <button class="ghost" id="btnCycViewProd" style="padding:5px 14px">양산 보기</button>
+          </div>
+          <div class="codeview" id="cycOutput" aria-live="polite"><div class="cv-empty">O번호와 수량을 넣고 <b>사이클 프로그램 생성</b>을 누르면 결과가 여기에 표시됩니다.</div></div>
+          <div class="row">
+            <div><button class="primary" id="btnCycDownload" disabled>다운로드</button></div>
+            <div><button class="ghost" id="btnCycCopy" disabled>클립보드 복사 (보이는 것)</button></div>
+            <div><button class="ghost" id="btnCycToCompare" disabled>⑤ 비교 탭으로 보내기</button></div>
+          </div>
+          <p class="hint" id="cycDlHint" hidden>"둘 다" 모드의 [다운로드]는 샘플·양산 파일 2개를 연달아 저장합니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ 탭 5: 비교 · 검증 ═══════ -->
+  <section id="panel-compare" class="panel" role="tabpanel">
+    <div class="grid2">
+      <div class="card">
+        <h2>프로그램 A<small>예: 기존 프로그램</small></h2>
+        <div class="filebar">
+          <button class="ghost" id="btnCmpAFile">파일 열기</button>
+          <input type="file" id="cmpAFile" hidden>
+          <span class="name" id="cmpAName">파일을 끌어다 놓거나 직접 붙여넣기</span>
+        </div>
+        <textarea class="code drop-area" id="cmpA" spellcheck="false" placeholder="여기로 프로그램 파일을 끌어다 놓으세요"></textarea>
+      </div>
+      <div class="card">
+        <h2>프로그램 B<small>예: 생성/변환된 프로그램</small></h2>
+        <div class="filebar">
+          <button class="ghost" id="btnCmpBFile">파일 열기</button>
+          <input type="file" id="cmpBFile" hidden>
+          <span class="name" id="cmpBName">파일을 끌어다 놓거나 직접 붙여넣기</span>
+        </div>
+        <textarea class="code drop-area" id="cmpB" spellcheck="false" placeholder="여기로 프로그램 파일을 끌어다 놓으세요"></textarea>
+      </div>
+    </div>
+    <div class="card">
+      <label class="check" style="margin-top:0"><input type="checkbox" id="cmpNorm" checked> 공백·빈 줄·주석(날짜/작성자) 차이는 무시</label>
+      <button class="primary" id="btnCompare">비교 실행</button>
+      <button class="ghost try" id="exCompare">🧪 예제로 체험해보기</button>
+      <div class="report" id="cmpReport"></div>
+      <div class="diff-progress" id="diffProgress" hidden>
+        <div class="dp-text">줄별 확인 <b>0 / 0</b>개</div>
+        <div class="dp-bar"><div class="dp-fill"></div></div>
+        <div class="dp-actions">
+          <button class="ghost" id="btnCheckAll" type="button">전체 확인</button>
+          <button class="ghost" id="btnUncheckAll" type="button">전체 해제</button>
+        </div>
+      </div>
+      <div class="codeview" id="cmpOutput" aria-live="polite"></div>
+
+      <!-- 작업자 최종 확인 (sign-off) -->
+      <div class="signoff" id="cmpSignoff" hidden>
+        <div class="signoff-head">🔎 작업자 최종 확인 <small>기계에 넣기 전, 변경된 부분을 직접 눈으로 확인하세요</small></div>
+        <div class="signoff-body" id="signoffForm">
+          <p class="signoff-guide" id="signoffGuide"></p>
+          <div class="row">
+            <div>
+              <label for="signoffName">확인자 이름</label>
+              <input type="text" id="signoffName" placeholder="예: 홍길동" autocomplete="off">
+            </div>
+          </div>
+          <label class="check" id="signoffSeenLabel"><input type="checkbox" id="signoffSeen" disabled> 위 결과의 <b>빨간 줄(빠짐)·초록 줄(들어옴)을 모두 직접 확인</b>했으며, 의도한 변경입니다. <span class="lock-note">(모든 줄을 확인하면 활성화됩니다)</span></label>
+          <button class="primary" id="btnSignoff" disabled>검증 확인 완료</button>
+        </div>
+        <div class="signoff-stamp" id="signoffStamp" hidden></div>
+      </div>
+
+      <!-- 확인 이력 (누가·언제) -->
+      <div class="signoff" id="signoffLogWrap" style="margin-top:14px" hidden>
+        <div class="signoff-head">📋 확인 이력 <small>누가 · 언제 · 무엇을 확인했는지 기록됩니다 (이 PC 브라우저에 저장)</small>
+          <span class="log-actions">
+            <button class="ghost" id="btnLogExport" type="button">CSV 내보내기</button>
+            <button class="ghost" id="btnLogClear" type="button">전체 지우기</button>
+          </span>
+        </div>
+        <div class="log-list" id="signoffLog"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ 탭 6: 형상 비교 ═══════ -->
+  <section id="panel-shape" class="panel" role="tabpanel">
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap;">
+        <div>
+          <b style="color:var(--accent); font-size:15px;">형상 비교 검증기</b>
+          <span style="color:var(--ink-faint); font-size:12.5px; margin-left:8px;">NC 프로그램 2개의 실제 가공 형상(단면)을 그려서 눈으로 비교</span>
+        </div>
+        <a class="ghost" id="btnShapeNewTab" href="shape-checker.html" target="_blank" rel="noopener" style="padding:6px 14px; text-decoration:none; border:1px solid var(--accent); border-radius:8px; color:var(--accent); font-size:12.5px;">새 창에서 크게 열기 ↗</a>
+      </div>
+      <iframe id="shapeFrame" title="형상 비교 검증기" style="width:100%; height:78vh; min-height:600px; border:none; display:block;" loading="lazy"></iframe>
+    </div>
+  </section>
+
+  <footer>
+    모든 변환·생성은 브라우저(로컬)에서만 처리되며 프로그램이 외부로 전송되지 않습니다. ·
+    규칙 출처: 20R-IV/20J 실제 프로그램 아카이브 (samples 폴더) · 팀 A4
+  </footer>
+</div>
+
+<script src="js/converter.js"></script>
+<script src="js/machine.js"></script>
+<script src="js/generator.js"></script>
+<script src="js/interpolate.js"></script>
+<script src="js/cycle.js"></script>
+<script src="js/examples.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

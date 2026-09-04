@@ -1,0 +1,3090 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=36d2a5dd-cd0a-4ca4-bb0a-0ec2c9f4e68d
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="hosting-provider" content="Netlify">
+<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=36d2a5dd-cd0a-4ca4-bb0a-0ec2c9f4e68d">
+<title>CNC 자동선반 형상 비교 검증기 — ① 기준 vs ② 비교 프로그램</title>
+<style>
+:root{
+  --bg:#FFFFFF; --panel:#F1F5F9; --panel2:#E8EEF4; --line:#CBD5E1;
+  --fg:#0F172A; --dim:#475569;
+  --g0:#B45309; --g1:#047857; --arc:#0369A1;
+  --th1:#7E22CE; --th2:#A21CAF;
+  --cut:#B91C1C; --mill:#A16207; --skip:#94A3B8;
+  --A:#0F766E; --B:#9A3412; --ref:#0369A1; --warn:#B45309;
+  --curbg:#DBEAFE; --codec:#5B6B7C; --onum:#0E7490;
+  --bad:#DC2626; --badbg:#FEE2E2;
+  --over:#DC2626; --overbg:#FEE2E2; --under:#1D4ED8; --underbg:#DBEAFE;
+  --bw-bg:#FEF3C7; --bw-fg:#92400E; --bw-bd:#FCD34D;
+  --bgr-bg:#D1FAE5; --bgr-fg:#065F46; --bgr-bd:#6EE7B7;
+  --br-bg:#FEE2E2; --br-fg:#991B1B; --br-bd:#FCA5A5;
+  --bv-bg:#F3E8FF; --bv-fg:#6B21A8; --bv-bd:#D8B4FE;
+  --bb-bg:#E0F2FE; --bb-fg:#075985; --bb-bd:#7DD3FC;
+  --btn:#E2E8F0; --btn-h:#CBD5E1; --btn-on:#D1FAE5; --btn-pri:#DBEAFE; --btn-pri-bd:#2563EB;
+  --ovl:#0f172a80;
+  --fs-code:clamp(12.5px,1.18vmin,24px); --fs-cur:clamp(14px,1.6vmin,32px);
+  --fs-num:clamp(17px,2.4vmin,48px); --fs-lab:clamp(10.5px,1.02vmin,21px);
+  --fs-hd:clamp(12.5px,1.28vmin,26px);
+  --fs-slot:clamp(13.5px,1.45vmin,29px);
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+}
+html.dark{
+  --bg:#0B0F14; --panel:#141A22; --panel2:#101620; --line:#243040;
+  --fg:#E8EDF2; --dim:#93A1B0;
+  --g0:#FFB020; --g1:#3DD68C; --arc:#38BDF8;
+  --th1:#C084FC; --th2:#F0ABFC;
+  --cut:#EF4444; --mill:#FBBF24; --skip:#4B5563;
+  --A:#2DD4BF; --B:#FB923C; --ref:#38BDF8; --warn:#F59E0B;
+  --curbg:#1D2A3A; --codec:#6E8CA0; --onum:#7DD3FC;
+  --bad:#F87171; --badbg:#3A1414;
+  --over:#F87171; --overbg:#3A1414; --under:#60A5FA; --underbg:#12233F;
+  --bw-bg:#3A2A08; --bw-fg:#F59E0B; --bw-bd:#6b4a08;
+  --bgr-bg:#0B2A1C; --bgr-fg:#3DD68C; --bgr-bd:#14563a;
+  --br-bg:#33100F; --br-fg:#EF4444; --br-bd:#6b1a18;
+  --bv-bg:#2A1240; --bv-fg:#C084FC; --bv-bd:#4d2170;
+  --bb-bg:#0A2230; --bb-fg:#38BDF8; --bb-bd:#1a4a66;
+  --btn:#1B2432; --btn-h:#243040; --btn-on:#0B2A1C; --btn-pri:#12263a; --btn-pri-bd:#2e6ea8;
+  --ovl:#000000cc;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+  font-family:var(--mono);overflow:hidden;font-variant-numeric:tabular-nums}
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:.5vw;padding:.45vh .8vw;background:var(--panel);
+  border-bottom:1px solid var(--line);font-size:var(--fs-hd);flex:0 0 auto;flex-wrap:nowrap;overflow:hidden}
+header .chip{border:1px solid var(--line);border-radius:.4em;padding:.12em .55em;color:var(--dim);white-space:nowrap}
+header .chip b{color:var(--fg)}
+header .sp{flex:1}
+header .pct{font-size:var(--fs-num);font-weight:700;line-height:1}
+.badge{border-radius:.4em;padding:.12em .55em;font-size:var(--fs-lab);font-weight:700;white-space:nowrap}
+.bw{background:var(--bw-bg);color:var(--bw-fg);border:1px solid var(--bw-bd)}
+.bg{background:var(--bgr-bg);color:var(--bgr-fg);border:1px solid var(--bgr-bd)}
+.br{background:var(--br-bg);color:var(--br-fg);border:1px solid var(--br-bd)}
+.bv{background:var(--bv-bg);color:var(--bv-fg);border:1px solid var(--bv-bd)}
+.bb{background:var(--bb-bg);color:var(--bb-fg);border:1px solid var(--bb-bd)}
+.tagA{background:var(--A);color:#fff;border-radius:.3em;padding:.08em .5em;font-weight:700}
+.tagB{background:var(--B);color:#fff;border-radius:.3em;padding:.08em .5em;font-weight:700}
+main{flex:1 1 auto;display:grid;grid-template-columns:23% 55% 22%;min-height:0}
+section{min-height:0;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--line)}
+section:last-child{border-right:none}
+.hd{padding:.35vh .6vw;background:var(--panel2);border-bottom:1px solid var(--line);
+  font-size:var(--fs-lab);color:var(--dim);flex:0 0 auto;display:flex;align-items:center;gap:.4vw}
+.tab{border:1px solid var(--line);border-radius:.3em;padding:.1em .5em;cursor:pointer;color:var(--dim)}
+.tab.on{background:var(--curbg);color:var(--fg);font-weight:700}
+.tab.a.on{border-color:var(--A)} .tab.b.on{border-color:var(--B)}
+.slotHd{padding:.45vh .55vw;background:var(--panel2);border-bottom:1px solid var(--line);
+  border-top:3px solid var(--line);cursor:pointer;flex:0 0 auto}
+.slotHd .r1{display:flex;align-items:center;gap:.4vw;font-size:var(--fs-slot);color:var(--fg)}
+.slotHd .r1 b{font-weight:700;letter-spacing:.01em}
+.slotHd .fn{font-size:var(--fs-lab);color:var(--dim);margin-top:.15em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slotHd.a{border-top-color:var(--A)} .slotHd.b{border-top-color:var(--B)}
+.slotHd.on{background:var(--curbg)}
+.slotHd.on .fn{color:var(--fg);font-weight:700}
+.slotHd.on .r1{text-shadow:0 0 0 currentColor}
+button.mini{min-width:auto;min-height:auto;padding:.2em .55em;font-size:var(--fs-lab);font-weight:700}
+.cw{flex:1 1 50%;overflow:hidden;position:relative;min-height:0}
+.cw .inner{position:absolute;left:0;right:0;top:0;will-change:transform}
+.cw.empty{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:var(--fs-lab)}
+/* 일치율 패널 */
+#matchBox{border:2px solid var(--line);border-radius:.4em;padding:.4em .5em;margin-bottom:.4vh;background:var(--panel2)}
+#matchBox.same{border-color:var(--g1);background:var(--bgr-bg)}
+#matchBox.near{border-color:var(--warn);background:var(--bw-bg)}
+#matchBox.diff{border-color:var(--cut);background:var(--br-bg)}
+#mBig{font-size:clamp(30px,5.4vmin,96px);font-weight:700;line-height:1;text-align:center;letter-spacing:-.02em}
+#mLab{text-align:center;font-size:var(--fs-lab);color:var(--dim);margin-bottom:.3em}
+#mVerdict{text-align:center;font-size:var(--fs-hd);font-weight:700;margin-top:.25em}
+#mSub{text-align:center;font-size:var(--fs-lab);color:var(--dim);line-height:1.45}
+.gauge{height:.7em;background:var(--btn-h);border-radius:.35em;overflow:hidden}
+.gauge.sm{height:.5em;flex:1}
+.gfill{height:100%;background:var(--g1);transition:width .25s}
+.gfill.near{background:var(--warn)} .gfill.diff{background:var(--cut)}
+.grow{display:flex;align-items:center;gap:.4em;font-size:var(--fs-lab);color:var(--dim);margin-top:.25em}
+.grow b{color:var(--fg);min-width:3.4em;text-align:right}
+#codewrap{flex:1 1 auto;overflow:hidden;position:relative}
+#code{position:absolute;left:0;right:0;top:0;will-change:transform}
+.ln{display:flex;gap:.4vw;padding:.06em .5vw;font-size:var(--fs-code);white-space:pre;line-height:1.5}
+.ln .n{color:var(--dim);opacity:.75;min-width:3.1em;text-align:right;flex:0 0 auto}
+.ln.cur{background:var(--curbg);font-size:var(--fs-cur);font-weight:700;box-shadow:inset .35em 0 0 var(--g1)}
+.ln.cur.th{box-shadow:inset .35em 0 0 var(--th1)}
+.ln.skip{color:var(--skip);text-decoration:line-through}
+.ln.onum{color:var(--onum);font-weight:700;margin-top:.4em;border-top:1px solid var(--line);padding-top:.25em}
+.ln.seg{color:var(--mill);font-weight:700}
+.ln.pre{color:var(--dim);opacity:.55}
+.ln.startln{color:var(--g1);font-weight:700;border-top:2px solid var(--g1);padding-top:.25em;margin-top:.15em}
+.ln .c{color:var(--codec);font-weight:600}
+.fold{margin:.25em .5vw;padding:.35em .55em;border:1px dashed var(--line);border-radius:.35em;
+  color:var(--dim);font-size:var(--fs-lab);cursor:pointer;line-height:1.5}
+.fold:hover{border-color:var(--g1);color:var(--fg)}
+.empty-msg{margin:1.2em .6vw;padding:1em .7em;border:2px dashed var(--line);border-radius:.4em;
+  text-align:center;font-size:var(--fs-hd);color:var(--fg);line-height:1.7}
+.empty-msg .big{font-size:var(--fs-slot);font-weight:700;display:block;margin-bottom:.3em}
+.empty-msg .hint{font-size:var(--fs-lab);color:var(--dim)}
+#stack{flex:0 0 auto;border-top:2px solid var(--line);padding:.5vh .6vw;font-size:var(--fs-hd);background:var(--panel2);font-weight:700}
+#cv-wrap{flex:1 1 auto;position:relative;min-height:0}
+canvas#cv{display:block;width:100%;height:100%;cursor:grab;background:var(--bg)}
+canvas#cv.drag{cursor:grabbing}
+#banner{position:absolute;left:50%;top:6%;transform:translateX(-50%);z-index:5;
+  background:var(--bv-bg);border:1px solid var(--bv-bd);color:var(--bv-fg);border-radius:.4em;
+  padding:.3em 1em;font-size:var(--fs-cur);font-weight:700;opacity:0;transition:opacity .3s;
+  pointer-events:none;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+#vbar{position:absolute;right:.4vw;top:.4vh;display:flex;gap:.2em;flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+#vbar button{min-width:auto;min-height:auto;padding:.12em .45em;font-size:var(--fs-lab)}
+#vbar button.vz{border-color:var(--bad);color:var(--bad);font-weight:700}
+#vbar button.vz:hover{background:var(--badbg)}
+#vbar button.vz.on{background:var(--bad);color:#fff}
+#legend{display:flex;gap:.55vw;flex-wrap:wrap;font-size:var(--fs-lab);color:var(--dim);padding:.15vh .6vw;flex:0 0 auto}
+#legend i{display:inline-block;width:1.4em;height:0;border-top-width:3px;border-top-style:solid;vertical-align:middle;margin-right:.2em}
+.strip{flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel2);padding:.3vh .6vw .45vh}
+.striphd{display:flex;gap:.7vw;align-items:baseline;font-size:var(--fs-lab);color:var(--dim);margin-bottom:.2vh}
+.striphd b{color:var(--fg);font-size:var(--fs-hd)}
+#ifbars{display:flex;gap:2px;align-items:flex-end;height:5.4vh}
+.ifb{flex:1;background:var(--btn-h);border-radius:2px 2px 0 0;min-width:2px}
+.ifb.on{background:var(--th1)}
+.ifb.past{background:color-mix(in srgb, var(--th1) 45%, var(--bg))}
+.ifb.air{background:var(--bw-bg);outline:1px solid var(--bw-fg)}
+.ifb.spring{background:var(--bgr-bg);outline:1px solid var(--g1)}
+#dcv{display:block;width:100%;height:6vh}
+#status{flex:1 1 auto;overflow:auto;padding:.4vh .6vw}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:.3vw;padding:.1em 0}
+.row .k{color:var(--dim);font-size:var(--fs-lab);flex:0 0 auto}
+.row .v{font-size:var(--fs-hd);font-weight:700;text-align:right}
+.big{font-size:var(--fs-num);font-weight:700;line-height:1.04}
+hr{border:none;border-top:1px solid var(--line);margin:.4vh 0}
+.grp{color:var(--dim);font-size:var(--fs-lab);letter-spacing:.08em;margin:.3vh 0 .05vh}
+#verdict{border:2px solid var(--line);border-radius:.4em;padding:.35em .5em;margin-bottom:.4vh;text-align:center}
+#verdict.same{border-color:var(--g1);background:var(--bgr-bg)}
+#verdict.near{border-color:var(--warn);background:var(--bw-bg)}
+#verdict.diff{border-color:var(--cut);background:var(--br-bg)}
+#verdict.none{border-color:var(--line);background:var(--panel2)}
+#vtitle{font-size:var(--fs-num);font-weight:700;line-height:1.05}
+#vsub{font-size:var(--fs-lab);color:var(--dim)}
+table.cmp{border-collapse:collapse;width:100%;font-size:var(--fs-lab)}
+table.cmp td,table.cmp th{border:1px solid var(--line);padding:.12em .3em;text-align:right}
+table.cmp th{background:var(--panel2);color:var(--dim);text-align:center}
+table.cmp td:first-child{text-align:left;color:var(--dim)}
+td.over,b.over,span.over{color:var(--over);font-weight:700}
+td.under,b.under,span.under{color:var(--under);font-weight:700}
+td.over{background:var(--overbg)} td.under{background:var(--underbg)}
+.dlg{display:inline-flex;align-items:center;gap:.3em}
+.dlg i{width:.8em;height:.8em;border-radius:.15em;display:inline-block}
+#warns{display:flex;flex-wrap:wrap;gap:.2em}
+footer{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line)}
+#chips{display:flex;gap:.28vw;padding:.45vh .6vw;overflow:auto;align-items:stretch}
+.chip2{border:1.5px solid var(--line);border-radius:.35em;padding:.3em .7em;font-size:var(--fs-hd);
+  font-weight:700;color:var(--fg);cursor:pointer;white-space:nowrap;line-height:1.25;
+  display:flex;align-items:center;gap:.4em}
+.chip2:hover{background:var(--btn-h)}
+.chip2.on{background:var(--curbg);color:var(--fg);border-color:var(--g1);border-width:2px;
+  box-shadow:0 0 0 2px var(--curbg)}
+.chip2.th{border-color:var(--bv-bd)}
+.chip2 .cd{font-size:var(--fs-lab);font-weight:700;padding:.05em .35em;border-radius:.3em}
+.chip2.over{border-color:var(--over);color:var(--over);background:var(--overbg)}
+.chip2.over .cd{background:var(--over);color:#fff}
+.chip2.over.on{background:var(--over);color:#fff;border-color:var(--over)}
+.chip2.over.on .cd{background:#fff;color:var(--over)}
+.chip2.under{border-color:var(--under);color:var(--under);background:var(--underbg)}
+.chip2.under .cd{background:var(--under);color:#fff}
+.chip2.under.on{background:var(--under);color:#fff;border-color:var(--under)}
+.chip2.under.on .cd{background:#fff;color:var(--under)}
+.chip2.good{border-color:var(--g1)}
+.chip2.good .cd{color:var(--g1)}
+.chip2.dim{opacity:.42}
+#ctl{display:flex;align-items:center;gap:.3vw;padding:.3vh .6vw;flex-wrap:wrap}
+button{background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:.3em;
+  min-width:clamp(30px,2.6vmin,56px);min-height:clamp(26px,2.6vmin,56px);
+  font-family:inherit;font-size:var(--fs-hd);cursor:pointer;padding:0 .4em}
+button:hover{background:var(--btn-h)}
+button.on{background:var(--btn-on);border-color:var(--g1)}
+button.pri{background:var(--btn-pri);border-color:var(--btn-pri-bd)}
+button.slotA{border-color:var(--A)} button.slotB{border-color:var(--B)}
+#scrub{flex:1 1 8vw;min-width:5vw;accent-color:#3DD68C}
+#disc{padding:.25vh .6vw;font-size:var(--fs-lab);color:var(--dim);border-top:1px solid var(--line);line-height:1.4}
+#modal{position:fixed;inset:0;background:var(--ovl);display:none;align-items:center;justify-content:center;z-index:20}
+#modal.on{display:flex}
+#mbox{background:var(--panel);border:1px solid var(--line);border-radius:.5em;
+  max-width:92vw;max-height:90vh;overflow:auto;padding:1vh 1.2vw;font-size:var(--fs-code);line-height:1.55}
+#mbox h3{margin:.1em 0 .5em;font-size:var(--fs-hd)}
+#mbox h4{margin:.9em 0 .25em;font-size:var(--fs-hd);color:var(--dim)}
+#mbox table{border-collapse:collapse;width:100%;margin:.3em 0 .9em}
+#mbox td,#mbox th{border:1px solid var(--line);padding:.2em .4em;text-align:left;font-size:var(--fs-code);vertical-align:top}
+#mbox th{background:var(--panel2);color:var(--dim)}
+#mbox input,#mbox select,#mbox textarea{background:var(--bg);color:var(--fg);border:1px solid var(--line);
+  border-radius:.25em;font-family:inherit;font-size:var(--fs-code);padding:.1em .3em}
+#mbox input[type=number]{width:5.5em}
+#mbox textarea{width:100%;min-height:6em}
+.ok{color:var(--g1)} .no{color:var(--cut)} .est{color:var(--warn)}
+.over{color:var(--over)} .under{color:var(--under)}
+label.sw{display:flex;align-items:center;gap:.25em;font-size:var(--fs-lab);color:var(--dim);cursor:pointer;white-space:nowrap}
+#drop{position:fixed;inset:0;background:var(--bgr-bg);opacity:.97;display:none;
+  align-items:center;justify-content:center;z-index:30;font-size:clamp(14px,2.4vmin,40px);font-weight:700;color:var(--g1);
+  text-align:center;flex-direction:column;gap:1em}
+#drop.on{display:flex}
+#drop .z{border:3px dashed var(--g1);border-radius:.5em;padding:1em 2em}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <span style="font-weight:700">CNC 자동선반 형상 비교 검증기</span>
+  <span class="chip">FANUC 계열 <b>G계 A</b></span>
+  <span class="chip">Star 전용코드 <b>인식</b></span>
+  <span class="badge bg" id="hA">① —</span>
+  <span class="badge br" id="hB">② 미로드</span>
+  <span class="chip">OFFSET 보정 <b id="hOfs">±0.05</b></span>
+  <span class="chip">스킵 <b id="hSkip">ON</b></span>
+  <span class="chip">시작 <b id="hStart">—</b></span>
+  <span class="sp"></span>
+  <span class="badge bw" id="hWarn">—</span>
+  <span class="badge bb" id="hMatch">일치율 —</span>
+  <span class="pct" id="hPct">0%</span>
+</header>
+
+<main>
+  <section>
+    <div class="slotHd a on" id="hdA">
+      <div class="r1"><span class="tagA">①</span><b>기준 프로그램</b>
+        <span style="flex:1"></span>
+        <button class="mini slotA" id="bLoadA" title="① 기준 프로그램 파일 열기">📂 넣기</button></div>
+      <div class="fn" id="fnA">—</div>
+    </div>
+    <div class="cw" id="cwA"><div class="inner" id="codeA"></div></div>
+    <div class="slotHd b" id="hdB">
+      <div class="r1"><span class="tagB">②</span><b>비교 프로그램</b>
+        <span style="flex:1"></span>
+        <button class="mini slotB" id="bLoadB" title="② 비교 프로그램 파일 열기">📂 넣기</button>
+        <button class="mini" id="bClearB2" title="② 비우기">✕</button></div>
+      <div class="fn" id="fnB">—</div>
+    </div>
+    <div class="cw" id="cwB"><div class="inner" id="codeB"></div></div>
+    <div id="stack"><span id="st1">—</span> <span id="st2" style="color:var(--th1)"></span>
+      <label class="sw" style="display:inline-flex;margin-left:.5em"><input type="checkbox" id="cbAllSub" checked> 서브</label></div>
+  </section>
+
+  <section>
+    <div class="hd">형상 비교 · Z-X 회전 단면 — <b style="color:var(--A)">위 = ① 기준</b> / <b style="color:var(--B)">아래 = ② 비교</b> · 휠=확대, 드래그=이동</div>
+    <div id="cv-wrap">
+      <canvas id="cv"></canvas>
+      <div id="banner"></div>
+      <div id="vbar">
+        <button id="vSeg" class="on">구간 추적</button>
+        <button id="vAll">전체</button>
+        <button id="vzPrev" class="vz" title="이전 차이 구간으로 이동">◀ 차이</button>
+        <button id="vzNext" class="vz" title="다음 차이 구간으로 이동">차이 ▶</button>
+        <button id="vzOff" class="vz" title="차이 구간 고정 해제">✕</button>
+        <button id="vRef" class="on">도면 기준선</button>
+        <button id="vGhost" class="on">① 겹쳐보기</button>
+        <button id="vDiff" class="on">차이 강조</button>
+        <button id="vPath">툴패스 전체</button>
+        <button id="vTheme">◐ 다크</button>
+      </div>
+    </div>
+    <div id="legend">
+      <span><i style="border-color:var(--A)"></i>① 기준 윤곽</span>
+      <span><i style="border-color:var(--B)"></i>② 비교 윤곽</span>
+      <span><i style="border-color:var(--A);border-top-style:dashed"></i>① 겹쳐보기(하반부)</span>
+      <span><i style="border-color:var(--over)"></i><b style="color:var(--over)">▼ ② 과대 (덜 깎임 +)</b></span>
+      <span><i style="border-color:var(--under)"></i><b style="color:var(--under)">▼ ② 과소 (더 깎임 −)</b></span>
+      <span><i style="border-color:var(--g0);border-top-style:dashed"></i>G0</span>
+      <span><i style="border-color:var(--g1)"></i>G1</span>
+      <span><i style="border-color:var(--arc)"></i>G2/G3</span>
+      <span><i style="border-color:var(--th1)"></i>G32</span>
+      <span><i style="border-color:var(--mill)"></i>Y/C</span>
+    </div>
+    <div class="strip" id="diffStrip">
+      <div class="striphd"><b id="dTitle">형상 차이 |Δr| (①−②)</b><span id="dSub">② 프로그램을 넣으면 비교합니다</span></div>
+      <canvas id="dcv"></canvas>
+    </div>
+    <div class="strip">
+      <div class="striphd"><b id="ifTitle">나사 절입 스케줄</b><span id="ifDetail">—</span></div>
+      <div id="ifbars"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="hd">① ↔ ② 일치율 / 현재 상태</div>
+    <div id="status">
+      <div id="matchBox" class="none">
+        <div id="mBig">—</div>
+        <div id="mLab">① ↔ ② 종합 일치율 (형상 × 윤곽)</div>
+        <div class="gauge"><div class="gfill" id="gVol" style="width:0%"></div></div>
+        <div class="grow"><span>형상</span><div class="gauge sm"><div class="gfill" id="gShape" style="width:0%"></div></div><b id="tShape">—</b></div>
+        <div class="grow"><span>윤곽</span><div class="gauge sm"><div class="gfill" id="gProf" style="width:0%"></div></div><b id="tProf">—</b></div>
+        <div class="grow"><span>구간</span><div class="gauge sm"><div class="gfill" id="gZone" style="width:0%"></div></div><b id="tZone">—</b></div>
+        <div class="grow"><span title="최종 형상을 만든 절삭 구간만 비교 — 공중 이송·여유 패스·블록 수 차이는 무시">형성</span><div class="gauge sm"><div class="gfill" id="gPath" style="width:0%"></div></div><b id="tPath">—</b></div>
+        <div id="mVerdict">② 미로드</div>
+        <div id="mSub">② 비교 프로그램을 넣으면 ①과 비교합니다</div>
+      </div>
+      <table class="cmp" id="cmpTbl"></table>
+      <div class="grp">다른 부분 — 치수가 어떻게 다른가 (최종 형상 기준, Δø = ②−①)</div>
+      <table class="cmp" id="zoneTbl"></table>
+      <hr>
+      <div class="grp">현재 블록 (<span id="focusLab">①</span>)</div>
+      <div class="big" id="sTool">—</div>
+      <div class="row"><span class="k">동작</span><span class="v" id="sMode">—</span></div>
+      <div class="row"><span class="k">공정</span><span class="v" id="sSeg">—</span></div>
+      <div class="row"><span class="k">X (반경)</span><span class="v" id="sX">—</span></div>
+      <div class="row"><span class="k">Z</span><span class="v" id="sZ">—</span></div>
+      <div class="row"><span class="k">Y/C/B</span><span class="v" id="sYCB">—</span></div>
+      <div class="row"><span class="k">S / F</span><span class="v" id="sSF">—</span></div>
+      <hr>
+      <div class="grp">나사</div>
+      <div class="row"><span class="k">줄/리드/피치</span><span class="v" id="sTh">—</span></div>
+      <div class="row"><span class="k">패스 · 절입</span><span class="v" id="sPass">—</span></div>
+      <div class="row"><span class="k">골경 · 깊이</span><span class="v" id="sRoot">—</span></div>
+      <div class="row"><span class="k">연속 절삭</span><span class="v" id="sEng">—</span></div>
+      <div class="row"><span class="k">오버랩/위상</span><span class="v" id="sPh">—</span></div>
+      <div class="row"><span class="k">프로파일</span><span class="v" id="sProf">—</span></div>
+      <hr>
+      <div class="grp">경고</div>
+      <div id="warns"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div id="chips"></div>
+  <div id="ctl">
+    <button id="bPaste" class="pri">붙여넣기</button>
+    <button id="bClearB">② 지우기</button>
+    <button id="bSet" class="pri">⚙ 설정</button>
+    <span style="width:.5vw"></span>
+    <button id="bHome">⏮</button><button id="bPrev">◀◀</button>
+    <button id="bPlay">▶</button><button id="bNext">▶▶</button><button id="bEnd">⏭</button>
+    <span class="chip">배속 <b id="spdLbl">×5</b></span>
+    <button data-spd="1">×1</button><button data-spd="2">×2</button><button data-spd="5" class="on">×5</button>
+    <button data-spd="10">×10</button><button data-spd="25">×25</button><button data-spd="50">×50</button><button data-spd="100">×100</button>
+    <button id="bSync" class="on">진행률 동기</button>
+    <button id="bSkip" class="on">/ 스킵 ON</button>
+    <button id="bLoop">↻ 반복</button>
+    <button id="bRep">리포트</button>
+    <button id="bVer">검증표</button>
+    <button id="bFs">⛶</button>
+    <input type="range" id="scrub" min="0" max="2000" value="0" step="1">
+  </div>
+  <div id="disc">
+    본 화면은 프로그램 흐름과 형상 변화 파악을 위한 <b>시각화 도구</b>입니다. 충돌·간섭 검사, 절삭 조건 타당성, 실제 사이클 타임을 검증하지 않습니다.
+    공구 오프셋·노즈 R 보정·Star 전용 코드의 실제 동작은 반영되지 않습니다. 형상 비교는 <b>2D 회전 단면 기준</b>이므로 Y/C 축 밀링(플루트) 차이는 단면에 나타나지 않습니다.
+    실제 가공 전에는 장비 드라이런 및 초물 검사로 확인하십시오. <span id="discSrc"></span>
+  </div>
+</footer>
+</div>
+
+<input type="file" id="fin" multiple style="display:none">
+<div id="modal"><div id="mbox"></div></div>
+<div id="drop"><div class="z" id="dropTxt">NC 프로그램 파일을 놓으세요</div></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   CNC 자동선반 형상 비교 검증기 (공개판)
+     ① 기준 프로그램  → 단면 상반부
+     ② 비교 프로그램  → 단면 하반부
+   두 프로그램을 각각 독립 실행해 최종 형상을 비교하고, 반경 차이 |Δr| 를
+   Z 전 구간에서 측정해 "동일 / 근사 / 다름" 을 판정한다.
+
+   · 좌표는 전부 로드된 프로그램에서 직접 읽는다 (하드코딩 시퀀스 없음)
+   · 나사는 성형 공구 프로파일로 실제 톱니를 절삭
+       공구별 프로파일(V 각도·팁R 또는 폴리라인)은 ⚙ 설정에서 지정한다
+   · 실행은 메인의 "(START)" 부터. 앞의 장비 기본 세팅 구간은 실행하지 않는다.
+   · 메인 레벨 M99/M30/M02 = 프로그램 종료 → 절단 장면에서 정지
+   ========================================================================== */
+
+const CFG={ stockDia:6.0, partLen:30.0, stockZ0:-0.6, dz:0.02,
+  rapid:20000, lot:100, engWarn:10.0, tol:0.010,
+  /* 장비 공구 OFFSET 보정 폭 (직경 기준 ±mm).
+     이 안의 치수차는 현장에서 오프셋만 돌려 맞출 수 있으므로 100% 로 본다.
+     반경으로는 ±ofs/2 가 불감대(dead band)가 된다. */
+  ofs:0.050,
+  startAtMarker:true, startMarker:"START" };
+const band=()=>CFG.ofs/2;                       // 반경 불감대
+const dEff=dr=>Math.max(0,dr-band());           // 오프셋 보정 후 남는 실제 차이
+
+/* 도면 기준값 — 공개판은 비워 둔다. ⚙ 설정에서 입력하면 기준선·치수표에 병기된다.
+   0 이면 그 항목은 표시하지 않는다. */
+const DWG={ crestDia:0, rootDia:0, headDia:0, len:0, headLen:4.0,
+  pitch:0, threadAngle:0, noseR:0 };
+
+const TOOLS={
+  T100:{name:"CUT-OFF 절단 바이트", kind:"cutoff", noseR:0, width:0.50, prof:null,
+        zOff:0, xOff:0, negX:true, kerfSide:"+Z",
+        zOffNote:"절단 바이트 두께/장착 위치만큼의 Z 오프셋을 여기에 입력하세요"},
+  T200:{name:"TURNING R0.2", kind:"turn", noseR:0.2, width:0.30, prof:null, zOff:0, xOff:0, negX:false},
+  T300:{name:"BACK TURNING R0.2", kind:"turn", noseR:0.2, width:0.30, prof:null, zOff:0, xOff:0, negX:false},
+  T400:{name:"THREAD 성형 바이트 A", kind:"thread", noseR:0, width:0,
+        prof:{kind:"V",angle:60,tipR:0.1}, zOff:0, xOff:0, negX:false,
+        profNote:"기본값 V 60°·팁R 0.1 — 실제 공구 형상을 ⚙ 설정에서 입력하세요"},
+  T500:{name:"THREAD 성형 바이트 B", kind:"thread", noseR:0, width:0,
+        prof:{kind:"V",angle:60,tipR:0.1}, zOff:0, xOff:0, negX:false,
+        profNote:"기본값 V 60°·팁R 0.1 — 실제 공구 형상을 ⚙ 설정에서 입력하세요"},
+  T700:{name:"END MILL ø4.0", kind:"mill", dia:4.0, noseR:0, prof:null, zOff:0, xOff:0, negX:false}
+};
+function tool(t){return TOOLS[t]||(TOOLS[t]={name:"—",kind:"unknown",noseR:0,width:0.3,prof:null,zOff:0,xOff:0,negX:false});}
+
+/* ── 성형 공구 프로파일 : u(축방향 ±mm) → d(팁에서의 반경 상승 mm) ────── */
+function riseOf(prof,u){
+  if(!prof)return null;
+  const au=Math.abs(u);
+  if(prof.kind==="V"){
+    const a=(prof.angle/2)*Math.PI/180,R=prof.tipR||0;
+    if(R>0){
+      const ut=R*Math.cos(a),dt=R*(1-Math.sin(a));
+      if(au<=ut)return R-Math.sqrt(Math.max(0,R*R-au*au));
+      return dt+(au-ut)/Math.tan(a);
+    }
+    return au/Math.tan(a);
+  }
+  const p=prof.points;if(!p||p.length<2)return null;
+  if(u<p[0][0]||u>p[p.length-1][0])return null;
+  for(let i=1;i<p.length;i++)if(u<=p[i][0]){
+    const w=(p[i][0]-p[i-1][0])||1e-9;
+    return p[i-1][1]+((u-p[i-1][0])/w)*(p[i][1]-p[i-1][1]);
+  }
+  return null;
+}
+function profHalfWidth(prof,depth){
+  if(!prof)return 0;
+  if(prof.kind==="V"){
+    const a=(prof.angle/2)*Math.PI/180,R=prof.tipR||0;
+    const ut=R*Math.cos(a),dt=R*(1-Math.sin(a));
+    if(depth<=dt)return Math.sqrt(Math.max(0,R*R-Math.pow(R-depth,2)));
+    return ut+(depth-dt)*Math.tan(a);
+  }
+  const p=prof.points;return Math.max(Math.abs(p[0][0]),Math.abs(p[p.length-1][0]));
+}
+function profLabel(t){
+  const T=tool(t);
+  if(!T.prof)return "미설정";
+  if(T.prof.kind==="V")return `${T.prof.angle}° V · 팁R ${T.prof.tipR}`;
+  return `폴리라인 ${T.prof.points.length}점`;
+}
+
+/* ============================================================================
+   0-B. 매크로 (FANUC 커스텀 매크로 B 부분집합)
+     · #n = <식>                              변수 대입
+     · WHILE[<조건>]DOn … ENDn                반복
+     · IF[<조건>]THEN#n=<식>  /  IF[…]GOTOn   조건 분기
+     · 주소값에 변수·식 사용 : G0X#3Z#5 , G0U-#2 , G1Z#1 , X[#1+2]
+     · 조건 연산자 EQ NE GT LT GE LE, 함수 SIN COS TAN SQRT ABS ROUND FIX FUP …
+     eval() 을 쓰지 않고 재귀 하강 파서로 직접 계산한다.
+   ========================================================================== */
+function evalExpr(src,V){
+  const s=String(src).toUpperCase().replace(/\s+/g,"");
+  let i=0;
+  const num=()=>{const m=/^\d*\.?\d+/.exec(s.slice(i));if(!m)throw new Error("식 오류: "+src);
+    i+=m[0].length;return parseFloat(m[0]);};
+  function primary(){
+    if(s[i]==="+"){i++;return primary();}
+    if(s[i]==="-"){i++;return -primary();}
+    if(s[i]==="#"){i++;
+      let idx;
+      if(s[i]==="["){i++;idx=expr();if(s[i]==="]")i++;}
+      else idx=num();
+      const k=Math.round(idx);
+      return (V[k]!==undefined&&V[k]!==null)?V[k]:0;
+    }
+    if(s[i]==="["){i++;const v=expr();if(s[i]==="]")i++;return v;}
+    const fn=/^(ASIN|ACOS|ATAN|SQRT|ROUND|SIN|COS|TAN|ABS|FIX|FUP|LN|EXP)\[/.exec(s.slice(i));
+    if(fn){i+=fn[0].length;const v=expr();if(s[i]==="]")i++;
+      const D=Math.PI/180;
+      switch(fn[1]){
+        case"SIN":return Math.sin(v*D); case"COS":return Math.cos(v*D); case"TAN":return Math.tan(v*D);
+        case"ASIN":return Math.asin(v)/D; case"ACOS":return Math.acos(v)/D; case"ATAN":return Math.atan(v)/D;
+        case"SQRT":return Math.sqrt(v); case"ABS":return Math.abs(v);
+        case"ROUND":return Math.round(v); case"FIX":return Math.trunc(v);
+        case"FUP":return v<0?Math.floor(v):Math.ceil(v);
+        case"LN":return Math.log(v); case"EXP":return Math.exp(v);
+      }
+    }
+    return num();
+  }
+  function term(){let v=primary();
+    while(s[i]==="*"||s[i]==="/"){const op=s[i++];const r=primary();v=(op==="*")?v*r:v/r;}
+    return v;}
+  function expr(){let v=term();
+    while(s[i]==="+"||s[i]==="-"){const op=s[i++];const r=term();v=(op==="+")?v+r:v-r;}
+    return v;}
+  const out=expr();
+  if(!isFinite(out))throw new Error("식 결과 비정상: "+src);
+  return out;
+}
+function evalCond(c,V){
+  const s=String(c).toUpperCase().replace(/\s+/g,"");
+  const m=/^(.*?)(EQ|NE|GT|LT|GE|LE)(.*)$/.exec(s);
+  if(!m)return evalExpr(s,V)!==0;
+  const a=evalExpr(m[1],V),b=evalExpr(m[3],V),e=1e-9;
+  switch(m[2]){
+    case"EQ":return Math.abs(a-b)<e; case"NE":return Math.abs(a-b)>=e;
+    case"GT":return a>b+e;           case"LT":return a<b-e;
+    case"GE":return a>=b-e;          case"LE":return a<=b+e;
+  }
+  return false;
+}
+
+/* ============================================================================
+   1. 토크나이저 — G0T0 vs GOTO / G4 드웰 / T 이중 형식 / M98P 정규화
+   ========================================================================== */
+function tokenize(raw){
+  const o={raw,comment:"",skip:false,words:[],goto:null,nLabel:null,oNum:null,isPct:false,macro:null};
+  let s=(raw||"").replace(/\r/g,"").trim();
+  if(s===""||s==="%"){o.isPct=true;return o;}
+  const cm=s.match(/\(([^)]*)\)/g);
+  if(cm)o.comment=cm.map(t=>t.slice(1,-1)).join(" ");
+  s=s.replace(/\([^)]*\)/g,"").replace(/;.*$/,"").trim();
+  if(s.startsWith("/")){o.skip=true;s=s.replace(/^\/\d*/,"").trim();}
+  const om=s.match(/^O\s*(\d+)/i);
+  if(om){o.oNum="O"+om[1].padStart(4,"0");return o;}
+  const gm=s.match(/GOTO\s*(\d+)/i);        // ★ G0T0 보호 : GOTO 최우선 확정
+  if(gm){o.goto=+gm[1];s=s.replace(gm[0],"");}
+  /* 매크로 문장 (N 라벨이 앞에 붙어 있을 수도 있다) */
+  let ms=s;
+  const nm0=ms.match(/^N\s*(\d+)\s*/i);
+  if(nm0&&/^(WHILE|END|IF|#)/i.test(ms.slice(nm0[0].length))){o.nLabel=+nm0[1];ms=ms.slice(nm0[0].length);}
+  let mm;
+  if((mm=ms.match(/^WHILE\s*\[(.+)\]\s*DO\s*(\d+)/i))){o.macro={t:"while",cond:mm[1],n:+mm[2]};return o;}
+  if((mm=ms.match(/^END\s*(\d+)/i))){o.macro={t:"end",n:+mm[1]};return o;}
+  if((mm=ms.match(/^IF\s*\[(.+?)\]\s*THEN\s*#\s*(\d+)\s*=\s*(.+)$/i))){
+    o.macro={t:"if",cond:mm[1],va:+mm[2],rhs:mm[3]};return o;}
+  if((mm=ms.match(/^IF\s*\[(.+?)\]\s*GOTO\s*(\d+)/i))){o.macro={t:"ifgoto",cond:mm[1],n:+mm[2]};return o;}
+  if((mm=ms.match(/^#\s*(\d+)\s*=\s*(.+)$/))){o.macro={t:"set",va:+mm[1],rhs:mm[2]};return o;}
+  if(/^(DO|GOTO)\b/i.test(ms)&&o.goto===null){o.macro={t:"raw",src:ms};return o;}
+  const nm=s.match(/^N\s*(\d+)/i);
+  if(nm){o.nLabel=+nm[1];s=s.replace(nm[0],"");}
+  /* 주소값에 변수·식 허용 : X#3 , U-#2 , Z[#1+2] */
+  const re=/([A-Z])\s*(\[[^\]]*\]|[-+]?#\d+|[-+]?\d*\.?\d+)/gi;let m;
+  while((m=re.exec(s))){
+    const rawv=m[2].replace(/\s+/g,"");
+    o.words.push({a:m[1].toUpperCase(),rawv,v:parseFloat(rawv),dyn:/[#\[]/.test(rawv)});
+  }
+  return o;
+}
+const STAR_G=new Set([25,125,266,300]);
+const STAR_M=new Set([10,11,20,25,27,200]);
+const STD_B=new Set(["G17","G18","G19","G28","G40","G54","G97","G98","M0","M1","M2","M3","M4","M5","M8","M9","M30"]);
+const GRADE_A_G=new Set([0,1,2,3,4,32,33,99]);
+
+/* ============================================================================
+   2. 런(실행 단위) — 두 프로그램을 완전히 독립된 상태로 돌린다
+   ========================================================================== */
+function newRun(id,label){
+  return {id,label,loaded:false,builtin:false,
+    LINES:[],PROGS:{},MAIN:null,SRC:"",CALLS:{},CALLED:new Set(),
+    STARTLINE:null,PRESCAN:{g266:null,modal:[],blocks:0},REGION:{tsStart:-1,tsEnd:-1},
+    LOADWARN:[],B:null,TOTAL:0,
+    PASSDATA:{},SEGDATA:{},ANALYSIS:{},TOOLDIST:{},SEGZ:{},CUTINFO:null,FINAL:null,
+    stockDia:CFG.stockDia,partLen:CFG.partLen,
+    zMin:-4,zMax:34,NC:0,cells:null,preR:null,thEnv:null,teeth:[],simplify:false,
+    finalProf:null,CUR:null,TRAIL:[],METR:{feed:{},g32:{}},DONE:false,t:0,FOLD:{pre:false,ts:false}};
+}
+const RA=newRun("A","① 기준"), RB=newRun("B","② 비교");
+let R=RA;                       // 엔진이 현재 다루는 런
+let FOCUS="A";                  // 코드 패널/상태 패널 초점
+const focused=()=>FOCUS==="A"?RA:RB;
+const zOf=i=>R.zMin+i*CFG.dz;
+const iOf=z=>Math.max(0,Math.min(R.NC-1,Math.round((z-R.zMin)/CFG.dz)));
+
+/* ── 프로그램 로드 ── */
+function loadInto(run,files,builtin){
+  const keep=R;R=run;
+  run.LINES=[];run.PROGS={};run.MAIN=null;run.LOADWARN=[];run.loaded=false;
+  run.stockDia=CFG.stockDia;run.partLen=CFG.partLen;run.FOLD={pre:false,ts:false};
+  files.forEach(f=>{
+    let oNum=null;
+    const tmp=f.text.split(/\n/);
+    for(const t of tmp){const tk=tokenize(t);if(tk.oNum){oNum=tk.oNum;break;}}
+    if(!oNum){
+      const fm=(f.name||"").match(/(\d{3,4})/);
+      oNum="O"+((fm?fm[1]:String(Object.keys(run.PROGS).length)).padStart(4,"0"));
+      run.LOADWARN.push(`${f.name}: O번호 줄 없음 → 파일명에서 ${oNum} 로 인식`);
+    }
+    const st=run.LINES.length;
+    tmp.forEach(t=>{if(t.trim()==="")return;
+      run.LINES.push({gi:run.LINES.length,prog:oNum,text:t,tk:tokenize(t)});});
+    run.PROGS[oNum]={start:st,end:run.LINES.length-1,file:f.name||oNum};
+  });
+  const called=new Set(),calls={};
+  Object.keys(run.PROGS).forEach(o=>calls[o]=new Set());
+  run.LINES.forEach(L=>{
+    const w=L.tk.words;
+    if(!w.some(x=>x.a==="M"&&x.v===98))return;
+    const p=w.find(x=>x.a==="P");if(!p)return;
+    const on="O"+String(p.rawv).replace(/^0+(?=\d)/,"").padStart(4,"0");
+    called.add(on);calls[L.prog]&&calls[L.prog].add(on);
+    if(!run.PROGS[on])run.LOADWARN.push(`미제공 서브 ${on} 호출 (${L.prog} 라인 ${L.gi+1}) — 건너뜀`);
+  });
+  const cand=Object.keys(run.PROGS).filter(o=>!called.has(o));
+  run.MAIN=cand[0]||Object.keys(run.PROGS)[0]||null;
+  if(cand.length>1)run.LOADWARN.push(`메인 후보 다수(${cand.join(", ")}) → ${run.MAIN}`);
+  run.CALLS=calls;run.CALLED=called;run.builtin=!!builtin;
+  run.SRC=files.map(f=>f.name).join(", ");
+  run.loaded=!!run.MAIN;
+  findStart(run);
+  R=keep;
+}
+
+/* ── 실행 시작점 : "(START)" 라인. 앞은 장비 기본 세팅이라 실행하지 않는다.
+      단 G266 인수(소재경·부품 길이)와 초기 모달은 읽어 둔다. ── */
+function findStart(run){
+  run.STARTLINE=null;run.PRESCAN={g266:null,modal:[],blocks:0};run.REGION={tsStart:-1,tsEnd:-1};
+  if(!run.MAIN)return;
+  const mk=(CFG.startMarker||"START").trim().toUpperCase();
+  const mainL=run.LINES.filter(L=>L.prog===run.MAIN);
+  for(const L of mainL)if((L.tk.comment||"").trim().toUpperCase()===mk){run.STARTLINE=L.gi;break;}
+  if(run.STARTLINE===null){
+    const esc=mk.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const re=new RegExp("\\b"+esc+"\\b","i");
+    for(const L of mainL)if(re.test(L.tk.comment||"")){run.STARTLINE=L.gi;break;}
+  }
+  if(run.STARTLINE===null){
+    run.LOADWARN.push(`${run.MAIN}: "(${mk})" 주석 미발견 → 선두부터 실행`);
+    return;
+  }
+  const s0=run.PROGS[run.MAIN].start;
+  run.PRESCAN.blocks=run.STARTLINE-s0;
+  for(let i=s0;i<run.STARTLINE;i++){
+    const w=run.LINES[i].tk.words;
+    if(w.some(x=>x.a==="G"&&x.v===266)){
+      const A=w.find(x=>x.a==="A"),W=w.find(x=>x.a==="W");
+      if(A)run.stockDia=A.v; if(W)run.partLen=W.v;
+      run.PRESCAN.g266=`A${A?A.v:"?"} W${W?W.v:"?"}`;
+    }
+    w.filter(x=>x.a==="G"&&[17,18,19,20,21,40,70,71,97,98,99].includes(x.v))
+     .forEach(x=>{const k="G"+x.v;if(!run.PRESCAN.modal.includes(k))run.PRESCAN.modal.push(k);});
+  }
+  const ex=mainL.filter(L=>L.gi>=run.STARTLINE);
+  const g=ex.find(L=>L.tk.goto!==null);
+  if(g){const tgt=ex.find(L=>L.tk.nLabel===g.tk.goto);
+    if(tgt&&tgt.gi>g.gi+1){run.REGION.tsStart=g.gi+1;run.REGION.tsEnd=tgt.gi-1;}}
+  if(run.PRESCAN.blocks>0)
+    run.LOADWARN.push(`장비 기본 세팅 ${run.PRESCAN.blocks}블록 실행 제외 — (${mk}) 라인 ${run.STARTLINE+1} 부터`
+      +(run.PRESCAN.g266?` · G266 ${run.PRESCAN.g266} 반영`:""));
+}
+
+/* ============================================================================
+   3. 인터프리터 → 동작 리스트
+   ========================================================================== */
+function build(run,skipOn){
+  const L0=run.LINES,PR=run.PROGS,MAIN=run.MAIN;
+  const ops=[],warn=[...run.LOADWARN];
+  const stat={g0t0:0,goto:0,opt:0,dwell:0,m98:0,m99:0,g32:0,arc:0,axis:0,
+    unsup:new Map(),recog:new Set(),noDec:0,t3:0,t1:0,skipped:0,preSkipped:0,endCode:null,blocks:L0.length};
+  const st={x:0,z:0,y:0,c:0,b:0,f:0.02,s:0,dir:0,tool:"T0",off:"T0",motion:-1,
+    q:0,seg:"HEADER",segIdx:0,sub:null,threadZref:0,threadPass:-1,lastZdir:-1};
+  const subNet={};const CALLX=[];
+  if(!MAIN)return{ops,warn:["프로그램 없음"],stat,subNet,CALLX};
+  const SUBG32={};
+  Object.keys(PR).forEach(o=>{SUBG32[o]=L0.slice(PR[o].start,PR[o].end+1)
+    .some(L=>L.tk.words.some(w=>w.a==="G"&&(w.v===32||w.v===33)));});
+  let cutSince=true,tSeg=null;const nameUse={};
+  /* 매크로 실행 상태 */
+  const V={};                                  // 커스텀 변수 #n
+  const wStack=[];                             // WHILE 스택
+  /* 각 WHILE 의 본문에 G32 가 있는지 미리 조사 → 나사 절입 루프 판별 */
+  const whileG32={},whileEnd={};
+  L0.forEach((L,li)=>{
+    if(!L.tk.macro||L.tk.macro.t!=="while")return;
+    let dep=0,g32=false,e=-1;
+    for(let k=li+1;k<L0.length&&L0[k].prog===L.prog;k++){
+      const mk=L0[k].tk.macro;
+      if(mk&&mk.t==="while"&&mk.n===L.tk.macro.n)dep++;
+      else if(mk&&mk.t==="end"&&mk.n===L.tk.macro.n){ if(dep===0){e=k;break;} dep--; }
+      if(L0[k].tk.words.some(w=>w.a==="G"&&(w.v===32||w.v===33)))g32=true;
+    }
+    whileG32[li]=g32;whileEnd[li]=e;
+  });
+  let passX=null,passSeen=false;               // 인라인 나사 패스 추적
+  let lastMainX=null;
+
+  function rec(kind,extra){
+    const op={kind,prog:st.sub||MAIN,line:extra.line,
+      x0:st.x,z0:st.z,
+      x1:extra.x1!==undefined?extra.x1:st.x,z1:extra.z1!==undefined?extra.z1:st.z,
+      f:st.f,s:st.s,tool:st.tool,off:st.off,seg:st.seg,segIdx:st.segIdx,q:st.q,
+      y:st.y,c:st.c,b:st.b,zref:st.threadZref,pass:st.threadPass,
+      tseg:tSeg?tSeg.key:null,zdir:st.lastZdir};
+    Object.assign(op,extra);
+    const dr=Math.abs(op.x1-op.x0)/2,dzz=Math.abs(op.z1-op.z0);
+    op.len=Math.hypot(dzz,dr);op.axial=dzz;
+    if(kind==="rapid")op.dur=op.len>0?op.len/(CFG.rapid/60):0.02;
+    else if(kind==="dwell")op.dur=extra.dur||0;
+    else if(kind==="feed"||kind==="thread"){
+      const vr=(st.f*st.s)/60;       // G99 : mm/rev × min⁻¹
+      op.dur=vr>0?((kind==="thread")?op.axial:op.len)/vr:0.05;
+    }else op.dur=0;
+    ops.push(op);
+    /* 인라인 나사 : 패스 시작 후 첫 G32 전의 "미세" 급속 X 이동 = 절입 */
+    if(tSeg&&!passSeen&&kind==="rapid"&&Math.abs(op.x1-op.x0)>1e-9&&Math.abs(op.x1-op.x0)<=0.5)
+      passX=op.x1;
+    if(tSeg&&kind==="thread")passSeen=true;
+    if(kind==="rapid"&&op.prog===MAIN&&Math.abs(op.x1-op.x0)>1e-9)lastMainX=op.x1;
+    if(dzz>1e-9)st.lastZdir=(op.z1>op.z0)?1:-1;
+    if(kind==="feed")cutSince=true;
+    st.x=op.x1;st.z=op.z1;
+    return op;
+  }
+  const useMk=CFG.startAtMarker&&run.STARTLINE!==null;
+  if(useMk)run.PRESCAN.modal.forEach(k=>stat.recog.add(k));
+  stat.preSkipped=useMk?run.PRESCAN.blocks:0;
+  let i=useMk?run.STARTLINE:PR[MAIN].start,guard=0;const retStack=[];
+
+  while(true){
+    if(++guard>500000){warn.push("실행 블록 상한 초과 — 중단");break;}
+    if(i<0||i>=L0.length)break;
+    const L=L0[i];if(!L)break;
+    if(L.prog!==(st.sub||MAIN)){
+      if(retStack.length){const r=retStack.pop();st.sub=r.sub;i=r.ret;continue;}
+      break;
+    }
+    const tk=L.tk;
+    if(tk.isPct||tk.oNum){i++;continue;}
+    if(tk.macro){
+      const M=tk.macro;
+      try{
+        if(M.t==="set"){
+          V[M.va]=evalExpr(M.rhs,V);
+          rec("aux",{line:i,note:`#${M.va} = ${V[M.va].toFixed(4)}`});i++;continue;
+        }
+        if(M.t==="if"){
+          const ok=evalCond(M.cond,V);
+          if(ok)V[M.va]=evalExpr(M.rhs,V);
+          rec("aux",{line:i,note:`IF[${M.cond}] ${ok?"참":"거짓"}${ok?` → #${M.va}=${V[M.va].toFixed(4)}`:""}`});
+          i++;continue;
+        }
+        if(M.t==="ifgoto"){
+          const ok=evalCond(M.cond,V);
+          rec("aux",{line:i,note:`IF[${M.cond}] ${ok?"참 → GOTO"+M.n:"거짓"}`});
+          if(ok){const t2=L0.findIndex(x=>x.prog===L.prog&&x.tk.nLabel===M.n);
+            if(t2>=0){i=t2;continue;}warn.push(`N${M.n} 라벨 없음`);}
+          i++;continue;
+        }
+        if(M.t==="while"){
+          stat.macroWhile=(stat.macroWhile||0)+1;
+          const ok=evalCond(M.cond,V);
+          rec("aux",{line:i,note:`WHILE[${M.cond}] ${ok?"진입":"종료"}`});
+          if(ok){
+            wStack.push({n:M.n,line:i,iter:0});
+            /* 이 루프가 나사 절입 루프면 새 나사 세그먼트를 연다 */
+            if(whileG32[i]){
+              const named=/^(THREAD|LOCKING)/i.test(st.seg);
+              const base=named?st.seg:`THREAD@L${i+1}`;
+              nameUse[base]=(nameUse[base]||0)+1;
+              tSeg={sub:`WHILE@${i+1}`,tool:st.tool,base,
+                key:base+(nameUse[base]>1?` (${nameUse[base]})`:""),n:0};
+              st.threadPass=0;st.threadZref=st.z;
+              passX=st.x;passSeen=false;cutSince=false;
+              CALLX.push({tseg:tSeg.key,pass:0,x:passX,sub:tSeg.sub});
+            }
+            i++;continue;
+          }
+          const e=whileEnd[i];
+          i=(e>=0)?e+1:L0.length;continue;
+        }
+        if(M.t==="end"){
+          const top=wStack[wStack.length-1];
+          if(top&&top.n===M.n){
+            const w=L0[top.line].tk.macro;
+            const again=evalCond(w.cond,V);
+            rec("aux",{line:i,note:`END${M.n} ${again?"반복":"탈출"}`});
+            if(again){
+              top.iter++;
+              if(whileG32[top.line]&&tSeg){        // 다음 나사 패스
+                CALLX[CALLX.length-1].x=passX!==null?passX:CALLX[CALLX.length-1].x;
+                tSeg.n++;st.threadPass=tSeg.n;st.threadZref=st.z;
+                passX=st.x;passSeen=false;
+                CALLX.push({tseg:tSeg.key,pass:tSeg.n,x:passX,sub:tSeg.sub});
+              }
+              i=top.line+1;continue;
+            }
+            if(whileG32[top.line]&&tSeg&&CALLX.length)
+              CALLX[CALLX.length-1].x=passX!==null?passX:CALLX[CALLX.length-1].x;
+            /* 나사 절입 루프가 끝나면 세그먼트를 닫는다 → 이후 인라인 G32(BURR 스프링
+               패스)는 별도 세그먼트로 잡힌다 */
+            if(whileG32[top.line]){tSeg=null;st.threadPass=-1;}
+            wStack.pop();i++;continue;
+          }
+          rec("aux",{line:i,note:`END${M.n} (대응 WHILE 없음)`});i++;continue;
+        }
+        rec("aux",{line:i,note:"매크로 미지원: "+(M.src||M.t)});
+        warn.push(`매크로 미지원 (라인 ${i+1})`);i++;continue;
+      }catch(err){
+        rec("aux",{line:i,note:"매크로 오류: "+err.message,bad:true});
+        warn.push(`매크로 오류 (라인 ${i+1}): ${err.message}`);i++;continue;
+      }
+    }
+    if(tk.skip)stat.opt++;
+    if(tk.skip&&skipOn){stat.skipped++;rec("skipped",{line:i});i++;continue;}
+    if(tk.comment){
+      const c=tk.comment.toUpperCase().trim();
+      if(c.length<=26&&!/이하|생략|필요|SETTING/.test(c)){
+        const nm=c.match(/(BACK\s*TURNING|TURNING[-\s]?\d*|THREAD[-\s]?[\w.]*|LOCKING[\w\s.-]*|CUT[-\s]?OFF|E\/M[\w\s.\/]*|TOOLSETTING|START)/);
+        if(nm&&nm[0].length>=c.length*0.55){
+          const s2=nm[0].replace(/\s+/g," ").trim();
+          if(s2!==st.seg){st.seg=s2;st.segIdx++;}
+        }
+      }
+    }
+    if(tk.goto!==null){
+      stat.goto++;
+      const t=L0.findIndex(x=>x.prog===L.prog&&x.tk.nLabel===tk.goto);
+      rec("aux",{line:i,note:`GOTO${tk.goto} 분기`});
+      if(t<0){warn.push(`N${tk.goto} 라벨 없음`);i++;}else i=t;
+      continue;
+    }
+    const W=tk.words;
+    const num=a=>{const w=W.find(x=>x.a===a);if(!w)return null;
+      if(!w.dyn)return w.v;
+      try{return evalExpr(w.rawv,V);}catch(err){
+        warn.push(`주소 식 오류 (라인 ${i+1}) ${w.a}${w.rawv}: ${err.message}`);return null;}};
+    const gW=W.filter(w=>w.a==="G"),mW=W.filter(w=>w.a==="M"),tW=W.filter(w=>w.a==="T");
+    W.forEach(w=>{if("XYZUVWIKR".includes(w.a)&&!/\./.test(w.rawv))stat.noDec++;});
+
+    /* Star 초기 세팅 블록 : 인수(X/Z/F/S)를 이동으로 읽으면 안 된다 */
+    const starG=gW.find(g=>STAR_G.has(g.v));
+    if(starG){
+      gW.forEach(g=>stat.recog.add("G"+g.v));mW.forEach(m=>stat.recog.add("M"+m.v));
+      let note="초기 자동 세팅 (기하 미반영)";
+      if(starG.v===266){
+        const A=num("A"),Wp=num("W");
+        if(A)run.stockDia=A; if(Wp)run.partLen=Wp;
+        note=`G266 — 소재경 ø${A||"?"} · 부품 길이 ${Wp||"?"}`;
+      }
+      rec("aux",{line:i,note,setup:true});i++;continue;
+    }
+    let isDwell=false,motionSet=null;
+    gW.forEach(g=>{
+      const v=g.v,key="G"+v;
+      if(GRADE_A_G.has(v)){
+        if([0,1,2,3,32,33].includes(v))motionSet=v;else if(v===4)isDwell=true;
+        return;
+      }
+      if(STD_B.has(key)){stat.recog.add(key);return;}
+      stat.unsup.set(key,(stat.unsup.get(key)||0)+1);
+    });
+    if(motionSet!==null)st.motion=motionSet;
+    tW.forEach(t=>{
+      const s2=t.rawv.replace(/^\+/,"");
+      if(s2.length>=3){if(st.tool!=="T"+s2)cutSince=true;st.tool="T"+s2;stat.t3++;}
+      else if(+s2===0){st.off="T0";stat.t1++;if(gW.some(g=>g.v===0))stat.g0t0++;}
+      else{st.off="T"+s2;stat.t1++;}
+    });
+    const fv=num("F"),sv=num("S"),qv=num("Q");
+    if(fv!==null&&!isDwell)st.f=fv;
+    if(sv!==null)st.s=sv;
+    if(qv!==null)st.q=((qv/1000)%360+360)%360;
+
+    let jumped=false;
+    for(const m of mW){
+      const v=m.v,key="M"+v;
+      if(v===98){
+        stat.m98++;
+        const p=num("P"),rep=num("L")||1;
+        const on="O"+String(p).replace(/^0+(?=\d)/,"").padStart(4,"0");
+        if(!PR[on]){rec("aux",{line:i,note:`미제공 서브 ${on} — 건너뜀`,bad:true});continue;}
+        if(SUBG32[on]){
+          const named=/^(THREAD|LOCKING)/i.test(st.seg);
+          const base=named?st.seg:`THREAD@${on}`;
+          if(!tSeg||tSeg.sub!==on||tSeg.tool!==st.tool||cutSince||tSeg.base!==base){
+            nameUse[base]=(nameUse[base]||0)+1;
+            tSeg={sub:on,tool:st.tool,base,key:base+(nameUse[base]>1?` (${nameUse[base]})`:""),n:0};
+          }
+          st.threadPass=tSeg.n++;st.threadZref=st.z;cutSince=false;
+          CALLX.push({tseg:tSeg.key,pass:st.threadPass,x:(lastMainX!==null?lastMainX:st.x),sub:on});
+        }else st.threadPass=-1;
+        rec("aux",{line:i,note:`M98 P${p}${rep>1?" L"+rep:""} → ${on}`,call:on,
+          tseg:SUBG32[on]&&tSeg?tSeg.key:null});
+        retStack.push({ret:i+1,sub:st.sub});
+        st.sub=on;i=PR[on].start;jumped=true;break;
+      }
+      if(v===99){
+        stat.m99++;
+        const p=num("P");
+        if(retStack.length){
+          rec("aux",{line:i,note:p!==null?`M99 P${p} 시퀀스 복귀`:"M99 복귀"});
+          const r=retStack.pop();st.sub=r.sub;i=r.ret;
+        }else{
+          rec("aux",{line:i,endOp:true,note:"M99 — 프로그램 종료 · 부품 1개 완성"});
+          stat.endCode="M99";i=L0.length;
+        }
+        jumped=true;break;
+      }
+      if((v===30||v===2)&&!retStack.length){
+        rec("aux",{line:i,endOp:true,note:`M${v} — 프로그램 종료`});
+        stat.recog.add(key);stat.endCode="M"+v;i=L0.length;jumped=true;break;
+      }
+      if(v===3)st.dir=1;else if(v===4)st.dir=-1;else if(v===5)st.dir=0;
+      if(![98,99].includes(v))stat.recog.add(key);
+    }
+    if(jumped)continue;
+    if(isDwell){
+      const u=num("U"),x=num("X"),p=num("P");
+      const sec=u!==null?u:(x!==null?x:(p!==null?p/1000:0));
+      stat.dwell++;rec("dwell",{line:i,dur:sec,note:`드웰 ${sec.toFixed(2)} s`});
+      i++;continue;
+    }
+    const ax=num("X"),au=num("U"),az=num("Z"),aw=num("W");
+    const ay=num("Y"),av=num("V"),ac=num("C"),ah=num("H"),ab=num("B");
+    if(ay!==null)st.y=ay; if(av!==null)st.y+=av;
+    if(ac!==null)st.c=ac; if(ah!==null)st.c+=ah;
+    if(ab!==null)st.b=ab;
+    const hasAxis=(ay!==null||av!==null||ac!==null||ah!==null);
+    if(hasAxis)stat.axis++;
+    const axisOnly=hasAxis&&ax===null&&au===null;
+    const hasMove=ax!==null||au!==null||az!==null||aw!==null;
+    if(!hasMove){
+      if(W.length||tk.nLabel!==null)rec("aux",{line:i});
+      i++;continue;
+    }
+    if(st.motion<0){warn.push(`라인 ${i+1}: 이동 모달 지정 전 좌표 → G0 가정`);st.motion=0;}
+    const nx=ax!==null?ax:(au!==null?st.x+au:st.x);
+    const nz=az!==null?az:(aw!==null?st.z+aw:st.z);
+    if(st.sub){const k=st.sub;subNet[k]=subNet[k]||{u:0,w:0};
+      if(au!==null)subNet[k].u+=au;if(aw!==null)subNet[k].w+=aw;}
+    if(st.motion===2||st.motion===3){
+      stat.arc++;
+      const pts=arcPts(st.x/2,st.z,nx/2,nz,num("I"),num("K"),num("R"),st.motion===2);
+      pts.forEach(p=>rec("feed",{line:i,x1:p.r*2,z1:p.z,arc:true,axis:axisOnly}));
+    }else{
+      const kind=st.motion===0?"rapid":((st.motion===32||st.motion===33)?"thread":"feed");
+      if(kind==="thread"){
+        stat.g32++;
+        /* M98 호출도 WHILE 루프도 아닌 "그냥 인라인 G32" (예: BURR 구간의 END1 뒤
+           1회 스프링 패스) 도 나사 패스로 잡는다. 안 잡으면 피치·위상이 어긋난다. */
+        const named=/^(THREAD|LOCKING)/i.test(st.seg);
+        const base=named?st.seg:(tSeg?tSeg.base:`THREAD@L${i+1}`);
+        if(!tSeg||tSeg.tool!==st.tool||tSeg.base!==base||cutSince){
+          nameUse[base]=(nameUse[base]||0)+1;
+          tSeg={sub:"인라인",tool:st.tool,base,
+            key:base+(nameUse[base]>1?` (${nameUse[base]})`:""),n:0};
+          st.threadPass=0;st.threadZref=st.z;passX=st.x;passSeen=false;cutSince=false;
+          CALLX.push({tseg:tSeg.key,pass:0,x:passX,sub:"인라인"});
+        }
+      }
+      rec(kind,{line:i,x1:nx,z1:nz,axis:axisOnly});
+    }
+    i++;
+  }
+  return {ops,warn,stat,subNet,CALLX};
+}
+
+/* 원호 전개 (ZX 평면). 부호 검증 : G2X2.25Z0.95R1.4 → 중심이 축상 Z1.4 = R1.4 볼노즈 팁,
+   G2X2.6W0.73R1.8 → 헤드 상단 볼록 라운드 */
+function arcPts(r0,z0,r1,z1,I,K,R2,cw){
+  let cr,cz;
+  if(I!==null&&I!==undefined||K!==null&&K!==undefined){cr=r0+(I||0);cz=z0+(K||0);}
+  else if(R2){
+    const dz=z1-z0,dr=r1-r0,d=Math.hypot(dz,dr);
+    if(d<1e-9||Math.abs(R2)<d/2-1e-9)return[{r:r1,z:z1}];
+    const h=Math.sqrt(Math.max(0,R2*R2-d*d/4))*(R2>0?1:-1)*(cw?-1:1);
+    cz=(z0+z1)/2-h*dr/d;cr=(r0+r1)/2+h*dz/d;
+  }else return[{r:r1,z:z1}];
+  const a0=Math.atan2(r0-cr,z0-cz),a1=Math.atan2(r1-cr,z1-cz);
+  const rad=Math.hypot(r0-cr,z0-cz);
+  let da=a1-a0;
+  if(cw){while(da>0)da-=2*Math.PI;if(da<-2*Math.PI)da+=2*Math.PI;}
+  else{while(da<0)da+=2*Math.PI;if(da>2*Math.PI)da-=2*Math.PI;}
+  const n=Math.max(6,Math.ceil(Math.abs(da)/0.08));
+  const out=[];
+  for(let k=1;k<=n;k++){const a=a0+da*k/n;out.push({z:cz+rad*Math.cos(a),r:cr+rad*Math.sin(a)});}
+  return out;
+}
+
+/* ============================================================================
+   4. 소재 모델 (런별) — 셀별 재료 존재 반경 구간, 공작물 좌표 Z 인덱싱
+   ========================================================================== */
+function resetStock(){
+  R.NC=Math.max(10,Math.round((R.zMax-R.zMin)/CFG.dz));
+  R.cells=new Array(R.NC);R.preR=new Float32Array(R.NC);
+  R.thEnv=new Float32Array(R.NC).fill(Infinity);R.teeth=[];
+  R.OWN=new Array(R.NC).fill(null);        // 각 셀의 "최종 표면을 만든 공정 구간"
+
+  const Rr=R.stockDia/2;
+  for(let i=0;i<R.NC;i++){
+    const has=zOf(i)>=CFG.stockZ0;
+    R.cells[i]=has?[[0,Rr]]:[];R.preR[i]=has?Rr:0;
+  }
+  R.simplify=false;
+}
+function outerR(i){const c=R.cells[i];return c&&c.length?c[c.length-1][1]:0;}
+/* ── 경로(형상 형성 구간) 일치율 ────────────────────────────────────────────
+   경로는 "최종 형상을 만든 절삭" 만 본다.
+   공중 이송·여유 로칭 패스·거친 절삭처럼 최종 면에 남지 않는 궤적, 그리고
+   블록/수식 개수 차이(예: Turning-1 이 10줄 vs 9줄)는 형상에 영향이 없으므로
+   퍼센트를 깎지 않는다. 각 셀의 "표면을 만든 절삭"(OWN) 유무만 비교한다.
+     경로 일치율 = |①∩② 형성 셀| / |①∪② 형성 셀|
+   → 같은 구간을 결국 다 깎았으면 100%. 어느 구간을 아예 안 깎아 소재가
+     그대로 남았을 때만 내려간다.                                           */
+function formedAt(run,z){
+  if(!run.cells||!run.OWN)return false;
+  const i=Math.round((z-run.zMin)/CFG.dz);
+  if(i<0||i>=run.NC)return false;
+  const c=run.cells[i],r=c&&c.length?c[c.length-1][1]:0;
+  return r>1e-9&&!!run.OWN[i];
+}
+let OWNOP=null;                            // 지금 절삭 중인 공정 구간 id
+function subCell(i,r0,r1){
+  if(i<0||i>=R.NC)return;
+  const c=R.cells[i];if(!c||!c.length)return;
+  const before=c[c.length-1][1];
+  const out=[];
+  for(const [a,b] of c){
+    if(r1<=a||r0>=b){out.push([a,b]);continue;}
+    if(r0>a)out.push([a,Math.min(r0,b)]);
+    if(r1<b)out.push([Math.max(r1,a),b]);
+  }
+  if(out.length>4){R.simplify=true;R.cells[i]=[[out[0][0],out[out.length-1][1]]];}
+  else R.cells[i]=out;
+  /* 외경이 실제로 줄었으면 그 셀의 표면 주인을 이 공정으로 바꾼다.
+     → 나중에 "어느 공정이 이 차이를 만들었나" 를 정확히 되짚을 수 있다 */
+  if(R.OWN&&OWNOP){
+    const cc=R.cells[i],after=cc&&cc.length?cc[cc.length-1][1]:0;
+    if(after<before-1e-9)R.OWN[i]=OWNOP;
+  }
+}
+function radOf(x,T){const r=x/2;return r>=0?r:(T.negX?-r:0);}
+/* 런 밖에서 임의 Z 의 외경 반경을 읽는다 (비교용) */
+function rAtRun(run,z){
+  if(!run.cells)return 0;
+  const i=Math.round((z-run.zMin)/CFG.dz);
+  if(i<0||i>=run.NC)return 0;
+  const c=run.cells[i];return c&&c.length?c[c.length-1][1]:0;
+}
+function rAtProf(run,z){
+  if(!run.finalProf)return 0;
+  const i=Math.round((z-run.zMin)/CFG.dz);
+  if(i<0||i>=run.finalProf.length)return 0;
+  return run.finalProf[i];
+}
+
+/* ── 절삭 ── */
+const REC={on:false,eng:null,face:0};
+function applyCut(op,t0,t1){
+  if(op.kind==="rapid"||op.kind==="dwell"||op.kind==="aux"||op.kind==="skipped")return;
+  if(op.axis)return;                       // Y/C 축비대칭 → 2D 단면 미반영
+  OWNOP=op.seg?(op.seg+"#"+op.segIdx):null;
+  const T=tool(op.tool);
+  const zo=T.zOff||0,xo=T.xOff||0;
+  const P=t=>({x:op.x0+(op.x1-op.x0)*t+xo,z:op.z0+(op.z1-op.z0)*t+zo});
+  const A=P(t0),Bp=P(t1),dz=Bp.z-A.z;
+  if(op.kind==="thread"){cutThread(op,A,Bp,dz,T);return;}
+  if(Math.abs(dz)<CFG.dz*0.5){
+    /* 반경 이송. ① 중심선을 넘어가는 절삭(페이싱) = 그 Z 에서 −Z 방향으로 재료가
+       연속으로 있는 구간만 제거(절단 스텁). ② 그 외 = 날폭만큼만, 절단 바이트는
+       kerfSide, 나머지는 마지막 Z 이동 방향 쪽. */
+    const cross=(A.x<=0||Bp.x<=0);
+    const rc=cross?0:Math.min(radOf(A.x,T),radOf(Bp.x,T));
+    const ic=iOf(A.z);
+    if(cross&&T.kind!=="cutoff"){
+      if(REC.on)REC.face++;
+      for(let k=ic;k>=0;k--){if(outerR(k)<=0)break;subCell(k,rc,1e9);R.preR[k]=Math.min(R.preR[k],rc);}
+    }else{
+      const w=Math.max(CFG.dz,T.width||0.3),n=Math.max(1,Math.round(w/CFG.dz));
+      const dir=(T.kind==="cutoff")?((T.kerfSide==="-Z")?-1:1):((op.zdir>=0)?1:-1);
+      for(let k=0;k<n;k++){const idx=ic+dir*k;subCell(idx,rc,1e9);
+        if(idx>=0&&idx<R.NC)R.preR[idx]=Math.min(R.preR[idx],rc);}
+    }
+    return;
+  }
+  const s=iOf(Math.min(A.z,Bp.z)),e=iOf(Math.max(A.z,Bp.z));
+  for(let i=s;i<=e;i++){
+    const u=Math.max(0,Math.min(1,(zOf(i)-A.z)/dz));
+    const r=radOf(A.x+(Bp.x-A.x)*u,T);
+    subCell(i,r,1e9);R.preR[i]=Math.min(R.preR[i],r);
+  }
+}
+function cutThread(op,A,Bp,dz,T){
+  const lead=Math.abs(op.f)||1,pitch=op.pitch||lead,prof=T.prof;
+  if(Math.abs(dz)<1e-9)return;             // 반경 도피 G32 → 톱니 없음
+  const za=Math.min(A.z,Bp.z),zb=Math.max(A.z,Bp.z);
+  if(!prof){
+    const s=iOf(za),e=iOf(zb);
+    for(let i=s;i<=e;i++){
+      const u=Math.max(0,Math.min(1,(zOf(i)-A.z)/dz));
+      const r=radOf(A.x+(Bp.x-A.x)*u,T);
+      if(R.preR[i]>0&&r<R.preR[i]-1e-6){
+        if(r<R.thEnv[i])R.thEnv[i]=r;
+        if(REC.on){const cd=Math.abs(op.x1-op.x0)<1e-6;markEng(op,R.preR[i]-r,r*2,cd);markTouch(op,i,cd);}
+      }
+    }
+    return;
+  }
+  const t0=(op.zref||0)+((op.q||0)/360)*lead;   // 줄(Q)별 톱니 위상
+  const k0=Math.ceil((za-t0)/pitch-1e-9),k1=Math.floor((zb-t0)/pitch+1e-9);
+  for(let k=k0;k<=k1;k++){
+    const zc=t0+k*pitch;
+    const u=Math.max(0,Math.min(1,(zc-A.z)/dz));
+    const rTip=radOf(A.x+(Bp.x-A.x)*u,T);
+    const ic=iOf(zc),crest=R.preR[ic];
+    if(crest<=0||rTip>=crest-1e-6)continue;     // 공기 절삭
+    const depth=crest-rTip;
+    const hw=Math.min(pitch/2,Math.max(CFG.dz,profHalfWidth(prof,depth*1.8)));
+    for(let i=iOf(zc-hw);i<=iOf(zc+hw);i++){
+      const d=riseOf(prof,zOf(i)-zc);
+      if(d===null)continue;
+      subCell(i,rTip+d,1e9);
+    }
+    R.teeth.push({z:zc,r:rTip,start:(Math.abs((op.q||0)-180)<1?2:1)});
+    if(rTip<R.thEnv[ic])R.thEnv[ic]=rTip;
+    if(REC.on)markEng(op,depth,rTip*2,Math.abs(op.x1-op.x0)<1e-6);
+  }
+  if(REC.on){
+    const s=iOf(za),e=iOf(zb),cd=Math.abs(op.x1-op.x0)<1e-6;
+    for(let i=s;i<=e;i++){
+      const u=Math.max(0,Math.min(1,(zOf(i)-A.z)/dz));
+      const r=radOf(A.x+(Bp.x-A.x)*u,T);
+      if(R.preR[i]>0&&r<R.preR[i]-1e-6)markTouch(op,i,cd);
+    }
+  }
+}
+const keyOf=op=>op.tseg+"#"+op.pass;
+function markEng(op,depth,dia,cd){
+  const p=REC.eng[keyOf(op)];if(!p)return;
+  p.depMax=Math.max(p.depMax,depth);if(cd)p.constDia=dia;
+}
+function markTouch(op,i,cd){
+  const p=REC.eng[keyOf(op)];if(!p)return;
+  p.cells[i]=1;if(cd)p.constCells[i]=1;
+}
+
+/* ============================================================================
+   5. 분석 (런별)
+   ========================================================================== */
+function autoRange(run,ops){
+  let lo=-1,hi=Math.max(run.partLen,1);
+  ops.forEach(o=>{if(o.kind!=="feed"&&o.kind!=="thread")return;
+    const zo=tool(o.tool).zOff||0;
+    lo=Math.min(lo,o.z0+zo,o.z1+zo);hi=Math.max(hi,o.z0+zo,o.z1+zo);});
+  run.zMin=Math.floor(lo-2);run.zMax=Math.ceil(hi+3);
+  if(run.zMax-run.zMin>260)run.zMax=run.zMin+260;
+}
+function analyze(run){
+  const keep=R;R=run;
+  const ops=run.B.ops;
+  const segQ={},segTool={},segCalls={},segSub={},segLead={},segZref={};
+  ops.forEach(o=>{
+    if(!o.tseg)return;
+    if(o.kind==="thread"&&Math.abs(o.z1-o.z0)>1e-9){
+      (segQ[o.tseg]=segQ[o.tseg]||new Set()).add(+(o.q||0).toFixed(3));
+      segTool[o.tseg]=o.tool;segLead[o.tseg]=Math.abs(o.f);
+      if(segZref[o.tseg]===undefined)segZref[o.tseg]=o.zref;
+    }
+    if(o.call){segCalls[o.tseg]=(segCalls[o.tseg]||0)+1;segSub[o.tseg]=o.call;}
+  });
+  const nStarts={},pitch={};
+  Object.keys(segQ).forEach(s=>{nStarts[s]=segQ[s].size||1;pitch[s]=(segLead[s]||1)/nStarts[s];});
+  ops.forEach(o=>{if(o.kind==="thread"&&o.tseg){o.pitch=pitch[o.tseg]||Math.abs(o.f);o.nstarts=nStarts[o.tseg]||1;}});
+
+  REC.on=true;REC.eng={};REC.face=0;
+  ops.forEach(o=>{if(o.kind==="thread"&&o.tseg&&o.pass>=0&&!REC.eng[keyOf(o)])
+    REC.eng[keyOf(o)]={cells:{},constCells:{},depMax:0,constDia:null};});
+  resetStock();
+  const tdist={},ftot={};
+  ops.forEach(o=>{
+    applyCut(o,0,1);
+    if(o.kind==="thread"){tdist[o.tool]=(tdist[o.tool]||0)+o.axial;ftot[o.tool]=(ftot[o.tool]||0)+o.axial;}
+    else if(o.kind==="feed")ftot[o.tool]=(ftot[o.tool]||0)+o.len;
+  });
+  REC.on=false;run.TOOLDIST=tdist;
+  run.finalProf=new Float32Array(run.NC);
+  for(let i=0;i<run.NC;i++)run.finalProf[i]=outerR(i);
+  run.FINAL=measure();
+  /* 완성 부품 구간만 남긴 프로파일 (남은 소재 제외) */
+  run.partProf=new Float32Array(run.NC);
+  run.partZ=[0,0];
+  {
+    const m=run.FINAL;
+    const a=m.z0!==null?m.z0:0, b=m.partEnd!==null?m.partEnd:0;
+    run.partZ=[a,b];
+    const ia=Math.max(0,Math.round((a-run.zMin)/CFG.dz));
+    const ib=Math.min(run.NC-1,Math.round((b-run.zMin)/CFG.dz));
+    for(let i=ia;i<=ib;i++)run.partProf[i]=run.finalProf[i];
+  }
+
+  run.PASSDATA={};
+  const callX={};
+  const segSubX={};
+  (run.B.CALLX||[]).forEach(c=>{
+    if(!c.tseg)return;
+    if(c.sub)segSubX[c.tseg]=c.sub;
+    const a=(callX[c.tseg]=callX[c.tseg]||[]);
+    a[c.pass]=(c.x!==null&&c.x!==undefined)?c.x:(a[c.pass-1]||0);
+  });
+  Object.keys(callX).forEach(k=>{callX[k]=callX[k].map(v=>v===undefined?0:v);});
+  Object.keys(callX).forEach(s=>{
+    const xs=callX[s];
+    run.PASSDATA[s]=xs.map((x,k)=>{
+      const e=REC.eng[s+"#"+k]||{};
+      const cn=Object.keys(e.cells||{}).length;
+      return {x,step:k?+(xs[k-1]-x).toFixed(4):0,cum:+(xs[0]-x).toFixed(4),
+        spring:k>0&&Math.abs(xs[k-1]-x)<1e-9,engLen:+(cn*CFG.dz).toFixed(3),
+        depMax:e.depMax||0,constDia:e.constDia,air:cn===0};
+    });
+  });
+  run.SEGDATA={};
+  Object.keys(callX).forEach(s=>{
+    const ps=run.PASSDATA[s];if(!ps||!ps.length)return;
+    let best=0,bd=-1;ps.forEach((p,k)=>{if(p.depMax>bd){bd=p.depMax;best=k;}});
+    const e=REC.eng[s+"#"+best]||{cells:{},constCells:{}};
+    const run2=o=>{const ix=Object.keys(o).map(Number).sort((a,b)=>a-b);
+      let mx=0,r=0,pv=-9;ix.forEach(i=>{r=(i===pv+1)?r+1:1;mx=Math.max(mx,r);pv=i;});
+      return {len:mx,span:ix.length?[+zOf(ix[0]).toFixed(2),+zOf(ix[ix.length-1]).toFixed(2)]:null};};
+    const a=run2(e.cells),b=run2(e.constCells);
+    run.SEGDATA[s]={tool:segTool[s],sub:segSub[s]||segSubX[s]||"인라인",calls:segCalls[s]||ps.length,
+      lead:segLead[s],pitch:pitch[s],nStarts:nStarts[s],zref:segZref[s],
+      passes:ps.length,deepest:best,engSpan:a.span,contig:+(a.len*CFG.dz).toFixed(2),
+      constSpan:b.span,constLen:+(b.len*CFG.dz).toFixed(2),
+      depth:+bd.toFixed(3),rootDia:ps[best].constDia};
+  });
+  const sg={};ops.forEach(o=>{if(o.kind==="thread"&&o.tseg)sg[o.tseg]=(sg[o.tseg]||0)+o.axial;});
+  Object.keys(run.SEGDATA).forEach(s=>run.SEGDATA[s].g32=+(sg[s]||0).toFixed(1));
+
+  const order=Object.keys(run.SEGDATA).filter(s=>run.SEGDATA[s].engSpan);
+  const prime=order.filter(s=>!/ \(\d+\)$/.test(s));
+  prime.forEach((s,k)=>{
+    if(k===0)return;
+    const D=run.SEGDATA[s],P0=run.SEGDATA[prime[k-1]];
+    if(P0.tool!==D.tool||Math.abs(P0.lead-D.lead)>1e-6)return;
+    const a=D.constSpan||D.engSpan,b=P0.constSpan||P0.engSpan;
+    if(!a||!b)return;
+    D.overlap=+(Math.min(b[1],a[1])-Math.max(b[0],a[0])).toFixed(2);
+    D.overlapLead=D.lead?+(D.overlap/D.lead).toFixed(3):null;
+    if(D.zref!==undefined&&P0.zref!==undefined&&D.lead){
+      D.dz=+(D.zref-P0.zref).toFixed(3);D.mult=+(D.dz/D.lead).toFixed(3);
+      D.phaseOK=Math.abs(D.mult-Math.round(D.mult))<1e-3;
+    }
+  });
+  run.SEGZ={};
+  ops.forEach(o=>{
+    if(o.kind!=="feed"&&o.kind!=="thread")return;
+    const zo=tool(o.tool).zOff||0,k=o.seg+"#"+o.segIdx;
+    const q=run.SEGZ[k]||(run.SEGZ[k]={a:1e9,b:-1e9});
+    q.a=Math.min(q.a,o.z0+zo,o.z1+zo);q.b=Math.max(q.b,o.z0+zo,o.z1+zo);
+  });
+  run.ANALYSIS={order,prime,ftot,coverage:(()=>{
+    const sp=prime.map(s=>run.SEGDATA[s].constSpan||run.SEGDATA[s].engSpan).filter(Boolean);
+    if(!sp.length)return null;
+    const lo=Math.min(...sp.map(x=>x[0])),hi=Math.max(...sp.map(x=>x[1]));
+    const sum=sp.reduce((a,x)=>a+(x[1]-x[0]),0);
+    const ov=prime.reduce((a,s)=>a+(run.SEGDATA[s].overlap>0?run.SEGDATA[s].overlap:0),0);
+    return {lo:+lo.toFixed(2),hi:+hi.toFixed(2),span:+(hi-lo).toFixed(2),sum:+sum.toFixed(2),ov:+ov.toFixed(2)};
+  })()};
+  // CUT-OFF 정보
+  run.CUTINFO=null;
+  const co=ops.filter(o=>o.kind==="feed"&&tool(o.tool).kind==="cutoff");
+  if(co.length){
+    const T=tool(co[0].tool),zc=co[0].z0+(T.zOff||0);
+    run.CUTINFO={tool:co[0].tool,zProg:co[0].z0,zOff:T.zOff||0,z:zc,w:T.width||0.5,
+      side:T.kerfSide||"+Z",partRear:(T.kerfSide==="-Z")?+(zc-(T.width||0.5)).toFixed(3):+zc.toFixed(3)};
+  }
+  R=keep;
+}
+function measure(){
+  const at=z=>outerR(iOf(z)),SR=R.stockDia/2;
+  const runs=[];let i=0;
+  while(i<R.NC){
+    if(outerR(i)<=0){i++;continue;}
+    let j=i;while(j<R.NC&&outerR(j)>0)j++;
+    runs.push({i,j,z0:zOf(i),z1:zOf(j-1),len:+(zOf(j-1)-zOf(i)+CFG.dz).toFixed(3)});
+    i=j;
+  }
+  const part=runs.length?runs[0]:null,sep=runs.length>1;
+  let pEnd=part?part.z0:null,len=0;
+  if(part){
+    if(sep){pEnd=part.z1;len=part.len;}
+    else{pEnd=part.z0;for(let k=part.i;k<part.j;k++){if(outerR(k)>=SR-0.03)break;pEnd=zOf(k);}
+      len=+(pEnd-part.z0).toFixed(3);}
+  }
+  /* 헤드 최대경은 "부품 뒤끝에서 headLen 만큼" 을 훑는다.
+     도면 전장이 입력돼 있으면 그 값을, 없으면 실측 부품 뒤끝을 기준으로 삼는다. */
+  let hi=0,hz=0;
+  const rear=(DWG.len>0)?DWG.len:(pEnd!==null?pEnd:0);
+  const hL=Math.max(0.5,DWG.headLen||4);
+  for(let z=rear-hL;z<=rear;z+=CFG.dz){const r=at(z);if(r>hi){hi=r;hz=z;}}
+  /* 대표 외경/골경은 "나사 구간" 에서 읽는다.
+     나사가 없으면 부품 중앙 20% 를 표본으로 쓴다 (제품 종속 상수 없음) */
+  let mz0=null,mz1=null;
+  const sp=(R.ANALYSIS&&R.ANALYSIS.coverage)?R.ANALYSIS.coverage:null;
+  if(sp&&isFinite(sp.lo)&&sp.hi>sp.lo){
+    const c=(sp.lo+sp.hi)/2,w=Math.max(2*(DWG.pitch||1),(sp.hi-sp.lo)*0.2);
+    mz0=Math.max(sp.lo,c-w/2);mz1=Math.min(sp.hi,c+w/2);
+  }else if(part){
+    const c=(part.z0+pEnd)/2,w=Math.max(1,(pEnd-part.z0)*0.2);
+    mz0=c-w/2;mz1=c+w/2;
+  }
+  let cmax=0,cmin=99;
+  if(mz0!==null)for(let z=mz0;z<=mz1;z+=CFG.dz){const r=at(z);if(r>cmax)cmax=r;if(r<cmin&&r>0)cmin=r;}
+  return {shaft:cmax*2,root:cmin<99?cmin*2:0,head:hi*2,headZ:hz,
+    z0:part?part.z0:null,z1:part?part.z1:null,partEnd:pEnd,len,sep,runs:runs.length};
+}
+
+/* ============================================================================
+   6. 형상 비교
+   ========================================================================== */
+let DIFF=null;
+/* 형상 비교 : "완성 부품 구간" 만 비교한다. 남은 소재(바)까지 넣으면 절단 위치
+   차이가 지표를 삼켜버린다.
+     · 형상 일치율  = Σmin(rA,rB)² / Σmax(rA,rB)²   (회전체 부피 IoU)
+     · 윤곽 일치율  = 1 − Σ|Δr| / Σmax(rA,rB)       (외곽선이 얼마나 겹치는가)
+     · 종합 일치율  = 형상 × 윤곽 / 100            ← 대표값(헤더/게이지)
+     · 경로 일치율  = 절삭 궤적 격자의 자카드 지수 (지나간 자리가 같은가)
+       → 퍼센트에는 넣지 않고, 판정(형상은 같으나 경로 다름)에만 반영한다
+     · 구간 일치율  = 허용 내 Z 길이 / 전체 부품 Z 길이                       */
+function computeDiff(){
+  DIFF=null;
+  if(!RA.loaded||!RB.loaded||!RA.partProf||!RB.partProf)return;
+  const z0=Math.min(RA.partZ[0],RB.partZ[0]), z1=Math.max(RA.partZ[1],RB.partZ[1]);
+  const n=Math.max(1,Math.round((z1-z0)/CFG.dz)+1);
+  const d=new Float32Array(n),dRaw=new Float32Array(n);
+  let maxD=0,maxZ=z0,sum=0,cnt=0,over=0,firstZ=null,lastZ=null;
+  let inter=0,uni=0,sAbs=0,sMax=0,matN=0,okN=0;
+  let maxRaw=0,maxRawZ=null,bandN=0;      // 오프셋으로 잡히는 범위의 차이
+  let fI=0,fU=0,fA=0,fB=0;                // 형상 형성 구간 (경로 일치율)
+  for(let i=0;i<n;i++){
+    const z=z0+i*CFG.dz;
+    const ra=partAt(RA,z),rb=partAt(RB,z);
+    const raw=Math.abs(ra-rb);dRaw[i]=raw;
+    /* ── 장비 오프셋 불감대 : ±CFG.ofs(직경) 안쪽 차이는 0 으로 본다 ── */
+    const dd=dEff(raw);d[i]=dd;
+    if(dd>maxD){maxD=dd;maxZ=z;}
+    if(ra<=1e-9&&rb<=1e-9)continue;
+    const fa=formedAt(RA,z),fb=formedAt(RB,z);
+    if(fa)fA++; if(fb)fB++;
+    if(fa||fb){fU++;if(fa&&fb)fI++;}
+    if(raw>maxRaw){maxRaw=raw;maxRawZ=z;}
+    if(raw>1e-9&&dd<=1e-9)bandN++;
+    matN++;sum+=dd*dd;cnt++;
+    if(dd<=CFG.tol)okN++; else {over++;if(firstZ===null)firstZ=z;lastZ=z;}
+    /* IoU·윤곽도 불감대를 반영한 유효 반경으로 계산 → 보정 범위 내면 정확히 100% */
+    const rbE=ra+(rb>=ra?dd:-dd);
+    const mn=Math.min(ra,rbE),mx=Math.max(ra,rbE);
+    inter+=mn*mn;uni+=mx*mx;sAbs+=dd;sMax+=mx;
+  }
+  const volPct = uni>0?inter/uni*100:0;
+  const zonePct= matN>0?okN/matN*100:0;
+  const profPct= sMax>0?(1-sAbs/sMax)*100:0;
+  const pPct   = fU>0?fI/fU*100:100;      // 경로(형상 형성 구간) 일치율
+  const fa=RA.FINAL,fb=RB.FINAL;
+  /* ── 최종 형상 치수 검증표 : 도면 치수에 대응하는 실측값을 ①②로 나란히 ──
+     단위는 사람이 도면에서 읽는 그대로 (직경은 ø, 길이는 mm) */
+  const thDep=r2=>+((r2.FINAL.shaft-r2.FINAL.root)/2).toFixed(4);
+  const thSpan=r2=>{
+    const sp=(r2.ANALYSIS.coverage);return sp?+(sp.hi-sp.lo).toFixed(2):null;};
+  const lead1=r2=>{const k=Object.keys(r2.SEGDATA)[0];return k?r2.SEGDATA[k].lead:null;};
+  const pit1=r2=>{const k=Object.keys(r2.SEGDATA)[0];return k?r2.SEGDATA[k].pitch:null;};
+  const nst1=r2=>{const k=Object.keys(r2.SEGDATA)[0];return k?r2.SEGDATA[k].nStarts:null;};
+  const dims=[
+    ["나사 외경 ø",fa.shaft,fb.shaft,3,DWG.crestDia],
+    ["나사 골경 ø",fa.root,fb.root,3,DWG.rootDia],
+    ["나사 깊이(반경)",thDep(RA),thDep(RB),3,+((DWG.crestDia-DWG.rootDia)/2).toFixed(3)],
+    ["나사부 길이",thSpan(RA),thSpan(RB),2,null],
+    ["리드",lead1(RA),lead1(RB),2,null],
+    ["피치",pit1(RA),pit1(RB),2,null],
+    ["줄수",nst1(RA),nst1(RB),0,null],
+    ["헤드 최대경 ø",fa.head,fb.head,3,DWG.headDia],
+    ["전장",fa.len,fb.len,2,DWG.len],
+    ["절단 Z",RA.CUTINFO?RA.CUTINFO.z:null,RB.CUTINFO?RB.CUTINFO.z:null,3,null]
+  ].map(([n2,a,b,dg,ref])=>({n:n2,a,b,dg,ref,
+      d:(a!==null&&b!==null&&isFinite(a)&&isFinite(b))?+(b-a).toFixed(4):null}));
+  const dimBad=dims.filter(x=>x.d!==null&&Math.abs(x.d)>CFG.ofs).length;   // 오프셋으로 못 잡는 것만
+  const segBad=Object.keys(RA.SEGDATA).length!==Object.keys(RB.SEGDATA).length;
+  const sepBad=RA.FINAL.sep!==RB.FINAL.sep;
+  const clean=(dimBad===0&&!segBad&&!sepBad);
+  const pathOK=pPct>=99.5,pathNear=pPct>=95;
+  const verdict=(maxD<=CFG.tol&&clean&&pathOK)?"same"
+               :(maxD<=CFG.tol*3&&clean&&pathNear)?"near":"diff";
+  /* 허용 초과 연속 구간(=차이 구간) 목록. 붉은 표시·화살표·칩 판정에 모두 쓴다 */
+  const zones=[];{
+    let st=null,mx=0,mz=0;
+    for(let i=0;i<n;i++){
+      const bad=d[i]>CFG.tol;
+      if(bad){if(st===null){st=i;mx=0;mz=z0+i*CFG.dz;}
+        if(d[i]>mx){mx=d[i];mz=z0+i*CFG.dz;}}
+      else if(st!==null){
+        zones.push({a:+(z0+st*CFG.dz).toFixed(3),b:+(z0+(i-1)*CFG.dz).toFixed(3),
+          mx:+mx.toFixed(4),mxZ:+mz.toFixed(2),len:+((i-st)*CFG.dz).toFixed(2)});st=null;}
+    }
+    if(st!==null)zones.push({a:+(z0+st*CFG.dz).toFixed(3),b:+z1.toFixed(3),
+      mx:+mx.toFixed(4),mxZ:+mz.toFixed(2),len:+((n-st)*CFG.dz).toFixed(2)});
+  }
+  zones.forEach((z,i)=>{
+    z.no=i+1;
+    /* 이 구간의 "치수가 어떻게 다른가" — 최대 차이 지점의 직경으로 표현 */
+    const ra=partAt(RA,z.mxZ),rb=partAt(RB,z.mxZ);
+    z.dA=+(ra*2).toFixed(3);z.dB=+(rb*2).toFixed(3);
+    z.dd=+((rb-ra)*2).toFixed(3);
+    z.sgn=z.dd>=0?1:-1;
+    z.kind=z.dd>0?"과대":"과소";      // ② 가 ① 보다 굵다(덜 깎임) / 얇다(더 깎임)
+  });
+  const totPct=volPct*profPct/100;      // 종합 = 형상(체적 IoU) × 윤곽(1−Σ|Δr|/Σr)
+  DIFF={z0,z1,n,d,dRaw,zones,maxD:+maxD.toFixed(4),maxZ:maxD>0?+maxZ.toFixed(2):null,
+    ofs:CFG.ofs,maxRaw:+maxRaw.toFixed(4),maxRawZ:maxRawZ!==null?+maxRawZ.toFixed(2):null,
+    bandLen:+(bandN*CFG.dz).toFixed(2),
+    maxRawDia:+(maxRaw*2).toFixed(3),
+    pathPct:+pPct.toFixed(2),pathA:fA,pathB:fB,pathInter:fI,pathUnion:fU,
+    pathLenA:+(fA*CFG.dz).toFixed(2),pathLenB:+(fB*CFG.dz).toFixed(2),
+    pathLenI:+(fI*CFG.dz).toFixed(2),pathLenU:+(fU*CFG.dz).toFixed(2),
+    totPct:+totPct.toFixed(2),
+    dimBad,segBad,sepBad,
+    rms:cnt?+Math.sqrt(sum/cnt).toFixed(4):0,over,overLen:+(over*CFG.dz).toFixed(2),
+    matLen:+(matN*CFG.dz).toFixed(2),
+    firstZ:firstZ!==null?+firstZ.toFixed(2):null,lastZ:lastZ!==null?+lastZ.toFixed(2):null,
+    volPct:+volPct.toFixed(2),zonePct:+zonePct.toFixed(2),profPct:+profPct.toFixed(2),
+    dims,verdict};
+}
+function partAt(run,z){
+  if(!run.partProf)return 0;
+  const i=Math.round((z-run.zMin)/CFG.dz);
+  if(i<0||i>=run.partProf.length)return 0;
+  return run.partProf[i];
+}
+/* ============================================================================
+   7. 재생 — 두 런을 같은 마스터 시간축에서 동시에 돌린다
+   ========================================================================== */
+let skipOn=true,MASTER=0,SYNC="pct";
+const P={t:0,playing:false,spd:5,loop:false};
+function activeRuns(){return [RA,RB].filter(r=>r.loaded);}
+
+function rebuildAll(){
+  activeRuns().forEach(r=>{
+    r.B=build(r,skipOn);
+    r.OPT=new Float64Array(r.B.ops.length+1);
+    for(let i=0;i<r.B.ops.length;i++)r.OPT[i+1]=r.OPT[i]+(r.B.ops[i].dur||0);
+    r.TOTAL=r.OPT[r.B.ops.length];
+    r._init=false;
+    autoRange(r,r.B.ops);
+    const keep=R;R=r;resetStock();R=keep;
+    analyze(r);
+  });
+  if(!RB.loaded){RB.B=null;RB.TOTAL=0;RB.finalProf=null;RB.FINAL=null;}
+  MASTER=Math.max(RA.TOTAL||0,RB.TOTAL||0);
+  computeDiff();
+  renderCode();buildChips();buildInfeed();renderVerdict();renderWarns();
+  updateHeader();fitAll(true);
+  seekTo(0);
+}
+function runT(r){
+  if(!r.loaded||!r.TOTAL)return 0;
+  if(SYNC==="pct"&&MASTER>0)return Math.min(r.TOTAL,P.t/MASTER*r.TOTAL);
+  return Math.min(r.TOTAL,P.t);
+}
+/* 전진 재생은 이전 상태에서 이어서 적용한다 (매크로 프로그램은 op 이 1만개를
+   넘어 매 프레임 전체 재생이 불가능하다). 되감기·재빌드 때만 전체 재계산. */
+function seekRun(r,t){
+  const keep=R;R=r;
+  const ops=r.B.ops;
+  const fwd=r._init&&t>=r._t-1e-12;
+  if(!fwd){
+    resetStock();r.TRAIL=[];r._k=0;r._p=0;r._feed={};r._g32={};r._init=true;
+  }
+  let k=r._k,p0=r._p;
+  const feed=r._feed,g32=r._g32;
+  while(k<ops.length){
+    const op=ops[k],d=op.dur||0,st=r.OPT[k];
+    const p=(d>0)?Math.max(0,Math.min(1,(t-st)/d)):1;
+    if(p>p0+1e-12||p0===0){
+      applyCut(op,p0,p);
+      const dp=p-p0;
+      if(dp>0){
+        if(op.kind==="feed")feed[op.tool]=(feed[op.tool]||0)+op.len*dp;
+        if(op.kind==="thread"){feed[op.tool]=(feed[op.tool]||0)+op.axial*dp;
+          g32[op.tool]=(g32[op.tool]||0)+op.axial*dp;}
+      }
+      if(op.x0!==op.x1||op.z0!==op.z1){
+        const last=r.TRAIL[r.TRAIL.length-1];
+        if(last&&last.op===op)last.p=p;else r.TRAIL.push({op,p});
+        if(r.TRAIL.length>6000)r.TRAIL.splice(0,r.TRAIL.length-6000);
+      }
+    }
+    r.CUR={op,p,idx:k};
+    if(p<1){r._k=k;r._p=p;break;}
+    p0=0;k++;
+    if(k>=ops.length){r._k=ops.length-1;r._p=1;break;}
+  }
+  if(!r.CUR&&ops.length)r.CUR={op:ops[0],p:0,idx:0};
+  r.METR={feed,g32};r._t=t;r.t=t;r.DONE=(r.TOTAL>0&&t>=r.TOTAL-1e-9);
+  R=keep;
+}
+function seekTo(t){
+  P.t=Math.max(0,Math.min(MASTER,t));
+  activeRuns().forEach(r=>seekRun(r,runT(r)));
+  computeLive();
+  updateUI();
+}
+/* 현재 시점 일치율 — 게이지는 가공이 진행되면서 움직인다.
+   비교 영역은 "최종 부품 구간"(드라이런에서 확정)으로 고정하고,
+   각 런의 최종 부품 뒤(남은 소재)는 제외해 최종값과 정확히 수렴하게 한다. */
+let LIVE=null;
+function liveAt(run,z){
+  if(!run.partZ)return 0;
+  if(z<run.partZ[0]-1e-9||z>run.partZ[1]+1e-9)return 0;
+  return rAtRun(run,z);
+}
+function computeLive(){
+  LIVE=null;
+  if(!RA.loaded||!RB.loaded||!RA.partZ||!RB.partZ)return;
+  const z0=Math.min(RA.partZ[0],RB.partZ[0]),z1=Math.max(RA.partZ[1],RB.partZ[1]);
+  const n=Math.max(1,Math.round((z1-z0)/CFG.dz)+1);
+  let inter=0,uni=0,sAbs=0,sMax=0,matN=0,okN=0,over=0,maxD=0,maxZ=null;
+  let fI=0,fU=0;
+  for(let i=0;i<n;i++){
+    const z=z0+i*CFG.dz;
+    const ra=liveAt(RA,z),rb=liveAt(RB,z);
+    const dd=dEff(Math.abs(ra-rb));      // 오프셋 불감대 적용
+    if(dd>maxD){maxD=dd;maxZ=z;}
+    if(ra<=1e-9&&rb<=1e-9)continue;
+    const fa=formedAt(RA,z),fb=formedAt(RB,z);
+    if(fa||fb){fU++;if(fa&&fb)fI++;}
+    matN++;
+    if(dd<=CFG.tol)okN++;else over++;
+    const rbE=ra+(rb>=ra?dd:-dd);
+    const mn=Math.min(ra,rbE),mx=Math.max(ra,rbE);
+    inter+=mn*mn;uni+=mx*mx;sAbs+=dd;sMax+=mx;
+  }
+  const vp=uni>0?inter/uni*100:100,pp=fU>0?fI/fU*100:100;
+  LIVE={volPct:vp,zonePct:matN>0?okN/matN*100:100,
+    profPct:sMax>0?(1-sAbs/sMax)*100:100,maxD:+maxD.toFixed(4),
+    maxZ:(maxD>0&&maxZ!==null)?+maxZ.toFixed(2):null,
+    pathPct:+pp.toFixed(2),totPct:+(vp*(sMax>0?(1-sAbs/sMax)*100:100)/100).toFixed(2),
+    overLen:+(over*CFG.dz).toFixed(2),matLen:+(matN*CFG.dz).toFixed(2)};
+}
+/* ── 차이 구간(허용 초과) 목록 — 진행 중에는 "지금까지 깎인 형상" 기준으로
+      실시간 계산, 완료 후에는 최종 DIFF.zones 를 쓴다.
+      붉은 윤곽·화살표·칩 판정이 모두 이 목록 하나를 공유한다. ── */
+let ZN={key:"",list:[]};
+function zonesNow(){
+  if(!DIFF)return [];
+  const done=activeRuns().length&&activeRuns().every(r=>r.DONE);
+  if(done)return DIFF.zones;
+  const key=P.t.toFixed(4);
+  if(ZN.key===key)return ZN.list;
+  const list=[];let st=null,mx=0,mz=0;
+  for(let i=0;i<DIFF.n;i++){
+    const z=DIFF.z0+i*CFG.dz;
+    const dd=dEff(Math.abs(liveAt(RA,z)-liveAt(RB,z)));
+    if(dd>CFG.tol){if(st===null){st=i;mx=0;mz=z;} if(dd>mx){mx=dd;mz=z;}}
+    else if(st!==null){
+      list.push({a:+(DIFF.z0+st*CFG.dz).toFixed(3),b:+(z-CFG.dz).toFixed(3),
+        mx:+mx.toFixed(4),mxZ:+mz.toFixed(2),len:+((i-st)*CFG.dz).toFixed(2)});st=null;}
+  }
+  if(st!==null)list.push({a:+(DIFF.z0+st*CFG.dz).toFixed(3),b:+DIFF.z1.toFixed(3),
+    mx:+mx.toFixed(4),mxZ:+mz.toFixed(2),len:+((DIFF.n-st)*CFG.dz).toFixed(2)});
+  list.forEach((z,i)=>{
+    z.no=i+1;
+    const ra=liveAt(RA,z.mxZ),rb=liveAt(RB,z.mxZ);
+    z.dA=+(ra*2).toFixed(3);z.dB=+(rb*2).toFixed(3);
+    z.dd=+((rb-ra)*2).toFixed(3);z.sgn=z.dd>=0?1:-1;z.kind=z.dd>0?"과대":"과소";
+  });
+  ZN={key,list};return list;
+}
+/* 지금 선택(추적)된 공정 구간의 Z 범위 — 이 범위 밖의 차이는 흐리게 죽인다 */
+/* ── 판정 문구 : 형상과 경로를 구분해 말한다.
+      형상이 같아도 경로가 다르면 그렇게 적어야 검증자가 원인을 찾는다 ── */
+function verdictLabel(){
+  if(!DIFF)return "판정 불가";
+  const shapeOK=DIFF.maxD<=CFG.tol&&DIFF.dimBad===0&&!DIFF.segBad&&!DIFF.sepBad;
+  if(DIFF.verdict==="same")return "형상 동일";
+  if(shapeOK)return DIFF.pathPct>=95?"형상 동일 · 형성구간 일부 차이":"형상 동일 · 안 깎은 구간 있음";
+  if(DIFF.verdict==="near")return "근사 일치 — 확인 권장";
+  return "형상 다름";
+}
+function verdictMark(){return DIFF&&DIFF.verdict==="same"?"✔":(DIFF&&DIFF.verdict==="near"?"△":"✖");}
+/* 차이 구간을 "치수" 로 말한다 : ① ø2.800 → ② ø2.840 (+0.040 과대) */
+function zoneDimTxt(z,short){
+  if(z.dA===undefined)return "";
+  const sg=z.dd>0?"+":"";
+  return short?`ø${z.dB.toFixed(3)} (${sg}${z.dd.toFixed(3)})`
+             :`① ø${z.dA.toFixed(3)} → ② ø${z.dB.toFixed(3)}  ${sg}${z.dd.toFixed(3)} ${z.kind}`;
+}
+let PINZ=null;                             // ◀Δ Δ▶ 로 고정한 차이 구간 번호
+function focusSpan(){
+  if(PINZ!==null){
+    const zs=zonesNow(),z=zs[PINZ];
+    if(z)return [z.a,z.b,`차이 ${PINZ+1}/${zs.length} · ${zoneDimTxt(z,1)}`];
+    PINZ=null;
+  }
+  if(VIEWMODE!=="seg")return null;
+  if(activeRuns().length&&activeRuns().every(r=>r.DONE))return null;  // 완료 후엔 전 구간 표시
+  const r=focused();if(!r.loaded||!r.CUR)return null;
+  const q=r.SEGZ[r.CUR.op.seg+"#"+r.CUR.op.segIdx];
+  if(!q||!isFinite(q.a))return null;
+  return [q.a,q.b,r.CUR.op.seg];
+}
+/* 차이 구간 사이를 화살표 버튼으로 순회 — 화면이 그 구간으로 이동하며 그 구간만 강조 */
+function gotoZone(dir){
+  const zs=zonesNow();
+  if(!zs.length){toast("허용 초과(차이) 구간이 없습니다");return;}
+  let i=(PINZ===null)?(dir>0?0:zs.length-1):PINZ+dir;
+  if(i<0)i=zs.length-1; if(i>=zs.length)i=0;
+  PINZ=i;const z=zs[i];
+  VIEWMODE="all";$("vAll").classList.add("on");$("vSeg").classList.remove("on");
+  const pad=Math.max(1.2,(z.b-z.a)*1.6);
+  VTARGET={z0:z.a-pad,z1:z.b+pad};
+  toast(`차이 ${i+1}/${zs.length} — Z${z.a.toFixed(2)}~Z${z.b.toFixed(2)} · 길이 ${z.len.toFixed(2)} mm · ${zoneDimTxt(z)}`);
+  draw();
+}
+function opStart(r,k){return (r.OPT&&r.OPT[k]!==undefined)?r.OPT[k]:0;}
+function masterFromRun(r,tRun){
+  if(SYNC==="pct"&&r.TOTAL>0&&MASTER>0)return tRun/r.TOTAL*MASTER;
+  return tRun;
+}
+function stepBlock(dir){
+  const r=focused();if(!r.loaded)return;
+  let k=r.CUR?r.CUR.idx:0;const cl=r.B.ops[k]?r.B.ops[k].line:-1;let n=k;
+  while(n+dir>=0&&n+dir<r.B.ops.length){n+=dir;if(r.B.ops[n].line!==cl)break;}
+  P.playing=false;setPlayBtn();
+  seekTo(masterFromRun(r,opStart(r,n)+(r.B.ops[n].dur||0)*0.999));
+}
+
+/* ============================================================================
+   8. 렌더러
+   ========================================================================== */
+const THEME={
+  light:{bg:"#FFFFFF",grid:"#E8EDF2",axis:"#64748B",
+    A:"#0F766E",Af:"#14B8A626",B:"#9A3412",Bf:"#F9731626",
+    g0:"#B45309",g1:"#047857",arc:"#0369A1",th1:"#7E22CE",th2:"#A21CAF",
+    mill:"#A16207",cut:"#B91C1C",ref:"#0369A1",ref2:"#0891B2",dim:"#475569",
+    labBg:"#FFFFFFF2",labFg:"#0F172A",segBOn:"#7E22CE1A",segE:"#A78BFA",segL:"#7E22CE",
+    stem:"#94A3B8",tipE:"#FFFFFF",bad:"#DC262633",badL:"#DC2626",
+    over:"#DC2626",overF:"#DC262633",under:"#1D4ED8",underF:"#1D4ED833",okL:"#047857",
+    div:"#0F172A",
+    insBg:"#FFFFFFF5",insE:"#A16207",insDim:"#94A3B8",insOff:"#CBB37E"},
+  dark:{bg:"#0B0F14",grid:"#18212c",axis:"#3a4b60",
+    A:"#2DD4BF",Af:"#2DD4BF2E",B:"#FB923C",Bf:"#FB923C2E",
+    g0:"#FFB020",g1:"#3DD68C",arc:"#38BDF8",th1:"#C084FC",th2:"#F0ABFC",
+    mill:"#FBBF24",cut:"#EF4444",ref:"#38BDF8",ref2:"#7DD3FC",dim:"#7d8b99",
+    labBg:"#141A22EE",labFg:"#E8EDF2",segBOn:"#C084FC26",segE:"#6b3fa0",segL:"#F0ABFC",
+    stem:"#2c3a4d",tipE:"#0B0F14",bad:"#EF444433",badL:"#EF4444",
+    over:"#EF4444",overF:"#EF444440",under:"#60A5FA",underF:"#60A5FA40",okL:"#3DD68C",
+    div:"#C9D4E0",
+    insBg:"#0B0F14EE",insE:"#4a3a1a",insDim:"#5A6673",insOff:"#6b5a2a"}
+};
+let PAL=THEME.light,THEMENAME="light";
+function setTheme(n){
+  THEMENAME=n;PAL=THEME[n];
+  document.documentElement.classList.toggle("dark",n==="dark");
+  const b=$("vTheme");if(b)b.textContent=(n==="light")?"◐ 다크":"◑ 라이트";
+  draw();drawDiffStrip();
+}
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+let VW=0,VH=0,DPR=1,VIEWMODE="seg",SHOWREF=true,SHOWGHOST=true,SHOWDIFF=true,SHOWPATH=false;
+const VIEW={z0:-4,z1:34,rmax:4.4};
+let VTARGET={z0:-4,z1:34};
+function fitAll(now){
+  let a=1e9,b=-1e9;
+  activeRuns().forEach(r=>r.B&&r.B.ops.forEach(o=>{
+    if(o.kind==="feed"||o.kind==="thread"){
+      const zo=tool(o.tool).zOff||0;
+      a=Math.min(a,o.z0+zo,o.z1+zo);b=Math.max(b,o.z0+zo,o.z1+zo);}}));
+  if(!isFinite(a)){a=-4;b=34;}
+  VTARGET={z0:a-2,z1:b+3};
+  VIEW.rmax=Math.max(CFG.stockDia/2*1.35,2.4);
+  if(now){VIEW.z0=VTARGET.z0;VIEW.z1=VTARGET.z1;}
+  draw();
+}
+function segTarget(){
+  const r=focused();if(!r.loaded||!r.CUR)return null;
+  const q=r.SEGZ[r.CUR.op.seg+"#"+r.CUR.op.segIdx];
+  if(!q||!isFinite(q.a))return null;
+  const pad=Math.max(2.0,(q.b-q.a)*0.28);
+  return {z0:q.a-pad,z1:q.b+pad};
+}
+function resize(){
+  const rc=cv.parentElement.getBoundingClientRect();
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.max(320,rc.width*DPR);cv.height=Math.max(200,rc.height*DPR);
+  VW=rc.width;VH=rc.height;ctx.setTransform(DPR,0,0,DPR,0,0);
+  const dc=$("dcv"),r2=dc.getBoundingClientRect();
+  dc.width=Math.max(320,r2.width*DPR);dc.height=Math.max(30,r2.height*DPR);
+  draw();drawDiffStrip();
+}
+new ResizeObserver(resize).observe(cv.parentElement);
+
+/* ── 화면을 두 개의 독립 패널로 나눈다. 각 패널은 자기 프로그램의 형상을
+      상하 대칭 "완전한 단면" 으로 그린다 (반쪽이 아니라 나사 전체 모양).
+      두 패널은 같은 Z 축·같은 배율을 쓰므로 Z 위치가 정확히 정렬된다. ── */
+function paneRects(){
+  const padL=50,padR=16,padB=Math.max(42,VH*0.098);
+  /* ② 로드 시 상단에 차이 Δ 라벨 3줄 + 요약이 들어가므로 여백을 넓힌다 */
+  const padT=Math.max(20,VH*(RB.loaded?0.125:0.078));
+  const w=VW-padL-padR,dual=RB.loaded;
+  const gap=dual?Math.max(10,VH*0.035):0;
+  const total=VH-padT-padB-gap;
+  const h=dual?total/2:total;
+  return {padL,padR,w,dual,gap,A:{y0:padT,h},B:{y0:padT+h+gap,h}};
+}
+function TP(id){
+  const p=paneRects(),rect=(id==="B")?p.B:p.A;
+  const sc=Math.min(p.w/(VIEW.z1-VIEW.z0),rect.h/(VIEW.rmax*2));
+  return {sc,X:z=>p.padL+(z-VIEW.z0)*sc,Y:r=>rect.y0+rect.h/2-r*sc,
+    Zof:px=>VIEW.z0+(px-p.padL)/sc,cy:rect.y0+rect.h/2,y0:rect.y0,h:rect.h,padL:p.padL,dual:p.dual};
+}
+function fnt(){return getComputedStyle(document.body).fontFamily;}
+function draw(){
+  if(!RA.B){drawWelcome();return;}
+  ctx.clearRect(0,0,VW,VH);ctx.fillStyle=PAL.bg;ctx.fillRect(0,0,VW,VH);
+  const dual=RB.loaded;
+  drawPane("A",RA,PAL.A,PAL.Af);
+  if(dual){
+    drawPane("B",RB,PAL.B,PAL.Bf);
+    if(SHOWDIFF)drawDiffBands();
+    drawSplit();                       // 위(①) / 아래(②) 를 가르는 검정 구분선
+  }
+  drawAnno();drawLoupe();drawDone();
+}
+/* ── 아무 프로그램도 없을 때의 안내 화면 ── */
+function drawWelcome(){
+  if(!VW||!VH)return;
+  ctx.clearRect(0,0,VW,VH);ctx.fillStyle=PAL.bg;ctx.fillRect(0,0,VW,VH);
+  const cx=VW/2,cy=VH/2;
+  const h1=Math.max(15,VH*0.038),h2=Math.max(11,VH*0.023),h3=Math.max(10,VH*0.019);
+  ctx.save();ctx.textAlign="center";ctx.textBaseline="alphabetic";
+  const bw=Math.min(VW-40,Math.max(430,VW*0.74)),bh=Math.min(VH-40,h1*1.9+h2*8.4);
+  ctx.fillStyle=PAL.labBg;ctx.strokeStyle=PAL.grid;ctx.lineWidth=2;
+  ctx.fillRect(cx-bw/2,cy-bh/2,bw,bh);ctx.strokeRect(cx-bw/2,cy-bh/2,bw,bh);
+  let y=cy-bh/2+h1*1.6;
+  ctx.font=`700 ${h1}px ${fnt()}`;ctx.fillStyle=PAL.A;
+  ctx.fillText("NC 프로그램 형상 비교 검증기",cx,y);y+=h2*2.0;
+  ctx.font=`700 ${h2}px ${fnt()}`;ctx.fillStyle=PAL.labFg;
+  ctx.fillText("두 프로그램을 실제로 실행해 최종 형상이 같은지 검증합니다",cx,y);y+=h2*2.2;
+  [["\u2460","기준(정상) 프로그램을 넣습니다  \u2014  왼쪽 위  \ud83d\udcc2 넣기",PAL.A],
+   ["\u2461","비교할 프로그램을 넣습니다  \u2014  왼쪽 아래  \ud83d\udcc2 넣기",PAL.B],
+   ["\u25b6","재생하면 가공이 진행되며 일치율 게이지가 함께 움직입니다",PAL.labFg]]
+   .forEach(([n,t,c])=>{
+      ctx.fillStyle=c;ctx.font=`700 ${h2}px ${fnt()}`;
+      ctx.fillText(`${n}  ${t}`,cx,y);y+=h2*1.75;
+   });
+  y+=h3*0.7;
+  ctx.font=`${h3}px ${fnt()}`;ctx.fillStyle=PAL.dim;
+  ctx.fillText("메인 + 서브프로그램을 한 번에 여러 개 선택할 수 있습니다  \u00b7  창에 드래그해도 됩니다",cx,y);y+=h3*1.6;
+  ctx.fillText("공구 형상 \u00b7 절단 바이트 Z 오프셋 \u00b7 소재경 \u00b7 허용값은  \u2699 설정  에서 지정하세요",cx,y);y+=h3*1.6;
+  ctx.fillText("형상 비교 전용 도구입니다 \u2014 충돌\u00b7간섭\u00b7절삭조건\u00b7사이클타임은 검증하지 않습니다",cx,y);
+  ctx.restore();
+}
+/* ── 위(① 기준) / 아래(② 비교) 를 확실히 가르는 구분선.
+      차이 밴드가 두 패널을 관통해 그려지므로 그 위에 마지막으로 얹는다. ── */
+function drawSplit(){
+  const p=paneRects();
+  const y=p.A.y0+p.A.h+p.gap/2;
+  ctx.save();
+  /* 선 자리를 배경색으로 지워 차이 밴드 위에서도 선이 또렷하게 보이게 한다 */
+  const h=Math.max(6,p.gap*0.8);
+  ctx.fillStyle=PAL.bg;ctx.fillRect(0,y-h/2,VW,h);
+  ctx.strokeStyle=PAL.div;ctx.lineWidth=3;ctx.setLineDash([]);ctx.lineCap="butt";
+  ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VW,y);ctx.stroke();
+  ctx.restore();
+}
+function drawPane(id,run,col,fill){
+  const t=TP(id);
+  ctx.save();ctx.beginPath();ctx.rect(0,t.y0-2,VW,t.h+4);ctx.clip();
+  drawGrid(t,run);
+  if(SHOWREF)drawRef(t);
+  drawStockFull(t,run,col,fill);
+  if(id==="B"&&SHOWGHOST)drawGhostFull(t,RA);
+  drawDiffOutline(t,run);
+  drawThreadMarks(t,run);
+  drawTrail(t,run);
+  drawTool(t,run);
+  ctx.restore();
+  // 패널 라벨
+  ctx.save();
+  ctx.fillStyle=col;ctx.textAlign="left";
+  ctx.font=`700 ${Math.max(10,VH*0.023)}px ${fnt()}`;
+  const ttl=(run.id==="A"?"① 기준 프로그램":"② 비교 프로그램")
+    +(run._plen?`   완성 L=${run._plen.toFixed(2)} mm`:"");
+  ctx.fillText(ttl,6,t.y0+Math.max(11,VH*0.024));
+  ctx.restore();
+}
+function drawGrid(t,run){
+  ctx.save();ctx.lineWidth=1;
+  const span=VIEW.z1-VIEW.z0,step=span>60?10:span>25?5:span>10?2:1;
+  for(let z=Math.ceil(VIEW.z0);z<=VIEW.z1;z++){
+    ctx.strokeStyle=PAL.grid;ctx.globalAlpha=(z%step===0)?1:0.4;
+    ctx.beginPath();ctx.moveTo(t.X(z),t.y0);ctx.lineTo(t.X(z),t.y0+t.h);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  ctx.strokeStyle=PAL.axis;ctx.setLineDash([10,6,2,6]);ctx.lineWidth=1.1;
+  ctx.beginPath();ctx.moveTo(0,t.cy);ctx.lineTo(VW,t.cy);ctx.stroke();ctx.setLineDash([]);
+  // 현재 나사 세그먼트 음영 (그 런 자신의 것)
+  ctx.font=`${Math.max(8,VH*0.018)}px ${fnt()}`;
+  (run.ANALYSIS.order||[]).forEach(sname=>{
+    const D=run.SEGDATA[sname],sp=D.constSpan||D.engSpan;if(!sp)return;
+    if(!(run.CUR&&run.CUR.op.tseg===sname))return;
+    ctx.fillStyle=PAL.segBOn;
+    ctx.fillRect(t.X(sp[0]),t.y0,Math.max(2,(sp[1]-sp[0])*t.sc),t.h);
+    ctx.fillStyle=PAL.segL;ctx.textAlign="center";
+    ctx.fillText(sname,(t.X(sp[0])+t.X(sp[1]))/2,t.y0+t.h-3);
+  });
+  ctx.restore();
+}
+function drawRef(t){
+  ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=1;
+  ctx.font=`${Math.max(7,VH*0.015)}px ${fnt()}`;
+  const line=(r,c,lab)=>{
+    ctx.strokeStyle=c;ctx.globalAlpha=.45;
+    [r,-r].forEach(rr=>{ctx.beginPath();ctx.moveTo(t.padL,t.Y(rr));ctx.lineTo(VW-8,t.Y(rr));ctx.stroke();});
+    ctx.globalAlpha=.9;ctx.fillStyle=c;ctx.textAlign="left";ctx.fillText(lab,t.padL+2,t.Y(r)-2);
+  };
+  if(DWG.crestDia>0)line(DWG.crestDia/2,PAL.ref,`ø${DWG.crestDia}`);
+  if(DWG.rootDia>0) line(DWG.rootDia/2,PAL.ref2,`ø${DWG.rootDia}`);
+  if(DWG.headDia>0) line(DWG.headDia/2,PAL.ref,`ø${DWG.headDia}`);
+  ctx.strokeStyle=PAL.ref;ctx.globalAlpha=.4;
+  [0].concat(DWG.len>0?[DWG.len]:[]).forEach(z=>{
+    ctx.beginPath();ctx.moveTo(t.X(z),t.y0);ctx.lineTo(t.X(z),t.y0+t.h);ctx.stroke();});
+  ctx.globalAlpha=1;ctx.setLineDash([]);ctx.restore();
+}
+/* 상하 대칭 전체 단면 — 나사 전체 모양이 보인다 */
+function drawStockFull(t,run,col,fill){
+  if(!run.cells)return;
+  const NC=run.NC,zm=run.zMin;
+  const rAt=i=>{const c=run.cells[i];return c&&c.length?c[c.length-1][1]:0;};
+  const segs=[];let i=0;
+  while(i<NC){
+    if(rAt(i)<=0){i++;continue;}
+    let j=i;while(j<NC&&rAt(j)>0)j++;
+    segs.push([i,j]);i=j;
+  }
+  const sep=segs.length>1;
+  ctx.save();
+  segs.forEach(([a,b],ri)=>{
+    const isPart=sep&&ri===0;
+    const pth=new Path2D();
+    pth.moveTo(t.X(zm+a*CFG.dz),t.Y(rAt(a)));
+    for(let k=a;k<b;k++)pth.lineTo(t.X(zm+k*CFG.dz),t.Y(rAt(k)));
+    for(let k=b-1;k>=a;k--)pth.lineTo(t.X(zm+k*CFG.dz),t.Y(-rAt(k)));
+    pth.closePath();
+    ctx.fillStyle=isPart?fill:PAL.stockF||fill;ctx.fill(pth);
+    ctx.strokeStyle=col;ctx.lineWidth=isPart?2.3:1.7;ctx.globalAlpha=isPart?1:.6;
+    ctx.stroke(pth);ctx.globalAlpha=1;
+    if(isPart)run._plen=((b-a)*CFG.dz);
+  });
+  ctx.restore();
+}
+/* ② 패널에 ① 윤곽을 점선으로 겹쳐 그린다 → 이탈이 바로 보인다 */
+function drawGhostFull(t,ref){
+  if(!ref.cells)return;
+  ctx.save();ctx.setLineDash([5,4]);ctx.lineWidth=1.4;ctx.strokeStyle=PAL.A;ctx.globalAlpha=.9;
+  [1,-1].forEach(sg=>{
+    ctx.beginPath();let st=false;
+    for(let i=0;i<ref.NC;i++){
+      const c=ref.cells[i],r=c&&c.length?c[c.length-1][1]:0;
+      if(r<=0){st=false;continue;}
+      const x=t.X(ref.zMin+i*CFG.dz),y=t.Y(sg*r);
+      st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true);
+    }
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);ctx.globalAlpha=1;ctx.restore();
+}
+function drawThreadMarks(t,run){
+  if(!run.teeth||!run.teeth.length)return;
+  ctx.save();const seen={};
+  run.teeth.forEach(td=>{
+    const k=td.z.toFixed(3);if(seen[k])return;seen[k]=1;
+    if(td.z<VIEW.z0||td.z>VIEW.z1)return;
+    const x=t.X(td.z);
+    ctx.strokeStyle=td.start===2?PAL.th2:PAL.th1;ctx.lineWidth=1.2;ctx.globalAlpha=.7;
+    ctx.beginPath();ctx.moveTo(x,t.Y(td.r));ctx.lineTo(x,t.Y(td.r)-4);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x,t.Y(-td.r));ctx.lineTo(x,t.Y(-td.r)+4);ctx.stroke();
+    ctx.globalAlpha=1;
+  });
+  ctx.restore();
+}
+/* ── ① ② 가 다른 부분을 "그 위치의 윤곽선 자체" 를 붉은 굵은 선으로 덧그린다.
+      선택(추적) 중인 공정 구간 밖의 차이는 흐리게 → 지금 보는 구간이 명확해진다 ── */
+function drawDiffOutline(t,run){
+  if(!DIFF||!RB.loaded||!SHOWDIFF||!run.cells)return;
+  const zs=zonesNow();if(!zs.length)return;
+  const fs=focusSpan();
+  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+  zs.forEach(zn=>{
+    if(zn.b<VIEW.z0-1||zn.a>VIEW.z1+1)return;
+    const inSel=!fs||(zn.b>=fs[0]-1e-9&&zn.a<=fs[1]+1e-9);
+    ctx.globalAlpha=fs?(inSel?1:0.16):0.95;
+    ctx.strokeStyle=zn.sgn<0?PAL.under:PAL.over;ctx.lineWidth=inSel?4.2:2.6;
+    const i0=Math.max(0,Math.round((zn.a-run.zMin)/CFG.dz));
+    const i1=Math.min(run.NC-1,Math.round((zn.b-run.zMin)/CFG.dz));
+    [1,-1].forEach(sg=>{
+      ctx.beginPath();let on=false;
+      for(let i=i0;i<=i1;i++){
+        const c=run.cells[i],r=c&&c.length?c[c.length-1][1]:0;
+        if(r<=0){on=false;continue;}
+        const x=t.X(run.zMin+i*CFG.dz),y=t.Y(sg*r);
+        on?ctx.lineTo(x,y):(ctx.moveTo(x,y),on=true);
+      }
+      ctx.stroke();
+    });
+  });
+  ctx.globalAlpha=1;ctx.restore();
+}
+/* 허용 초과 Z 구간 : 관통 밴드 + 위/아래 화살표 + Δ 라벨 */
+function drawDiffBands(){
+  if(!DIFF)return;
+  const t=TP("A"),p=paneRects();
+  const done=activeRuns().every(r=>r.DONE);
+  const zs=zonesNow();
+  const fs=focusSpan();
+  const yTop=p.A.y0,yBot=p.B.y0+p.B.h;
+  ctx.save();
+  /* 1) 세로 밴드 */
+  zs.forEach(zn=>{
+    const inSel=!fs||(zn.b>=fs[0]-1e-9&&zn.a<=fs[1]+1e-9);
+    ctx.globalAlpha=(fs&&!inSel)?0.12:(done?1:0.5);
+    ctx.fillStyle=zn.sgn<0?PAL.underF:PAL.overF;
+    ctx.fillRect(t.X(zn.a),yTop,Math.max(1.5,(zn.b-zn.a+CFG.dz)*t.sc),yBot-yTop);
+  });
+  ctx.globalAlpha=1;
+  /* 2) 화살표 — 선택 구간 안은 전부, 밖은 Δ 큰 순서로 6개까지만 라벨 */
+  const labeled=new Set();
+  if(fs){zs.forEach(z=>{if(z.b>=fs[0]-1e-9&&z.a<=fs[1]+1e-9)labeled.add(z);});}
+  else zs.slice().sort((a,b)=>b.mx-a.mx||b.len-a.len).slice(0,6).forEach(z=>labeled.add(z));
+  const fh=Math.max(10,VH*0.021);
+  ctx.font=`700 ${fh}px ${fnt()}`;
+  const rows=[];                    // 라벨 겹침 방지용 (x범위, 줄)
+  zs.forEach(zn=>{
+    if(zn.b<VIEW.z0-0.5||zn.a>VIEW.z1+0.5)return;
+    const inSel=!fs||(zn.b>=fs[0]-1e-9&&zn.a<=fs[1]+1e-9);
+    if(fs&&!inSel)return;
+    const xc=(t.X(zn.a)+t.X(zn.b+CFG.dz))/2;
+    const zc=zn.sgn<0?PAL.under:PAL.over;
+    ctx.globalAlpha=1;ctx.fillStyle=zc;ctx.strokeStyle=zc;
+    // ▼ 위쪽 (① 패널 상단) / ▲ 아래쪽 (② 패널 하단)
+    const ah=Math.max(7,VH*0.014);
+    const tri=(x,y,dir)=>{ctx.beginPath();ctx.moveTo(x,y);
+      ctx.lineTo(x-ah*0.62,y-dir*ah);ctx.lineTo(x+ah*0.62,y-dir*ah);ctx.closePath();ctx.fill();};
+    tri(xc,yTop+1,1);
+    if(p.dual)tri(xc,yBot-ah-1,-1);   // 축 라벨과 겹치지 않게 패널 안쪽
+    if(!labeled.has(zn))return;
+    // 라벨 : Δ값 + Z위치. 겹치면 한 줄 내려서 그린다
+    const txt=zn.dd!==undefined?`ø${zn.dB.toFixed(3)} (${zn.dd>0?"+":""}${zn.dd.toFixed(3)})`
+                                :`Δ${zn.mx.toFixed(3)} @Z${zn.mxZ}`;
+    const w=ctx.measureText(txt).width+8;
+    let lv=-1;
+    for(let g=0;g<3;g++){
+      if(!rows.some(rw=>rw.lv===g&&Math.abs(rw.x-xc)<(rw.w+w)/2)){lv=g;break;}
+    }
+    if(lv<0)return;                 // 3줄로도 안 들어가면 라벨 생략 (화살표만)
+    rows.push({x:xc,w,lv});
+    const ly=yTop-4-lv*(fh+3);
+    ctx.textAlign="center";ctx.textBaseline="alphabetic";
+    ctx.fillStyle=PAL.labBg;ctx.fillRect(xc-w/2,ly-fh,w,fh+3);
+    ctx.strokeStyle=zc;ctx.lineWidth=1.4;ctx.strokeRect(xc-w/2,ly-fh,w,fh+3);
+    ctx.fillStyle=zc;ctx.fillText(txt,xc,ly);
+    ctx.beginPath();ctx.moveTo(xc,ly+3);ctx.lineTo(xc,yTop);ctx.stroke();
+  });
+  /* 3) 우측 상단 요약 */
+  if(zs.length&&PINZ===null){
+    const over=zs.reduce((a,z)=>a+z.len,0),mx=zs.reduce((a,z)=>Math.max(a,z.mx),0);
+    ctx.textAlign="right";
+    ctx.font=`700 ${Math.max(10,VH*0.021)}px ${fnt()}`;
+    const wz=zs.slice().sort((a,b)=>Math.abs(b.dd||0)-Math.abs(a.dd||0))[0];
+    ctx.fillStyle=(wz&&wz.sgn<0)?PAL.under:PAL.over;
+    const dtx=wz&&wz.dd!==undefined?`최대 치수차 Δø${(wz.dd>0?"+":"")+wz.dd.toFixed(3)} ${wz.kind} @Z${wz.mxZ} (① ø${wz.dA.toFixed(3)} → ② ø${wz.dB.toFixed(3)})`
+                                   :`최대 Δ${mx.toFixed(3)}`;
+    const msg=done?`✖ 다른 구간 ${zs.length}곳 · 총 ${over.toFixed(2)} mm · ${dtx}`
+                  :`▶ 진행 중 차이 ${zs.length}곳 · ${dtx} (최종 판정 아님)`;
+    ctx.fillText(msg,VW-10,yTop+fh+3);
+  }else if(done&&RB.loaded&&PINZ===null){
+    ctx.textAlign="right";
+    ctx.font=`700 ${Math.max(10,VH*0.021)}px ${fnt()}`;
+    const inb=DIFF&&DIFF.maxRawDia>0.0005;
+    ctx.fillStyle=PAL.g1;
+    ctx.fillText(inb
+      ?`✔ 100% — 치수차 최대 Δø${DIFF.maxRawDia.toFixed(3)} 는 공구 OFFSET ±${CFG.ofs} 로 보정 가능`
+      :`✔ 허용 내 — 다른 구간 없음`,VW-10,yTop+fh+3);
+  }
+  /* 4) 선택 구간 표시 — 양 패널을 감싸는 괄호 + 구간명 */
+  if(fs){
+    ctx.globalAlpha=1;ctx.strokeStyle=PAL.segL;ctx.lineWidth=2;ctx.setLineDash([7,4]);
+    const x0=t.X(fs[0]),x1=t.X(fs[1]);
+    ctx.beginPath();ctx.moveTo(x0,yTop);ctx.lineTo(x0,yBot);ctx.moveTo(x1,yTop);ctx.lineTo(x1,yBot);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=PAL.segL;ctx.textAlign="center";ctx.font=`700 ${fh}px ${fnt()}`;
+    const inz=zs.filter(z=>z.b>=fs[0]-1e-9&&z.a<=fs[1]+1e-9);
+    const lab=`◀ ${fs[2]} ▶ `+(inz.length?`차이 ${inz.length}곳`:"차이 없음");
+    const lx=Math.min(VW-70,Math.max(70,(x0+x1)/2));
+    const ly=p.dual?(p.A.y0+p.A.h+p.gap/2+fh*0.35):(yBot-4);
+    const lw=ctx.measureText(lab).width+10;
+    ctx.fillStyle=PAL.labBg;ctx.fillRect(lx-lw/2,ly-fh,lw,fh+4);
+    ctx.fillStyle=inz.length?(inz[0].sgn<0?PAL.under:PAL.over):PAL.g1;
+    ctx.fillText(lab,lx,ly);
+  }
+  ctx.restore();
+}
+/* ── 차이 구간 확대 인셋 ("◀ 차이 / 차이 ▶" 로 고정한 구간).
+      본 화면은 1:1 회전단면이라 0.7 mm 구간을 크게 볼 수 없다. 그래서 그 구간만
+      잘라 ①②윤곽을 겹쳐 확대한다. 반경 창은 "차이가 난 자리" 기준으로 잡아
+      0.02 mm 차이도 눈에 보이게 한다 (Z·R 배율은 서로 다름). ── */
+function drawLoupe(){
+  if(PINZ===null||!DIFF||!RB.loaded)return;
+  const zs=zonesNow(),zn=zs[PINZ];if(!zn)return;
+  const p=paneRects();
+  const bw=Math.min(Math.max(300,VW*0.30),460),bh=Math.min(Math.max(190,VH*0.34),330);
+  const bx=VW-bw-10,by=p.A.y0+6;
+  const span=Math.max((zn.b-zn.a)*2.2,1.2),zc=(zn.a+zn.b)/2;
+  const z0=zc-span/2,z1=zc+span/2;
+  /* 반경 창 : 차이가 난 셀들의 반경만 본다 → Δ 가 화면 높이의 상당 부분을 차지 */
+  let rmin=1e9,rmax=-1e9;
+  for(let zz=zn.a;zz<=zn.b+1e-9;zz+=CFG.dz){
+    [RA,RB].forEach(rr=>{const v=rAtRun(rr,zz);if(v>0){rmin=Math.min(rmin,v);rmax=Math.max(rmax,v);}});
+  }
+  if(rmin>rmax)return;
+  const raM=rAtRun(RA,zn.mxZ),rbM=rAtRun(RB,zn.mxZ),rc=(raM+rbM)/2;
+  /* 치형 전체(골~산)를 담으면 Δ0.02 는 점처럼 보인다.
+     창이 Δ 에 비해 너무 크면 "차이점 중심" 으로 반경 창을 좁힌다 */
+  let rWin="치형";
+  if((rmax-rmin)>Math.max(0.12,zn.mx*8)&&rc>0){
+    const h=Math.max(0.06,zn.mx*4);rmin=Math.max(0,rc-h);rmax=rc+h;rWin=`반경창 ±${h.toFixed(3)}`;
+  }else{
+    const rp=Math.max(0.035,(rmax-rmin)*0.55);rmin=Math.max(0,rmin-rp);rmax+=rp;
+  }
+  const hd=Math.max(11,VH*0.020),ft=Math.max(9,VH*0.0165);
+  const ix=bx+8,iy=by+hd*2+4,iw=bw-16,ih=bh-hd*2-ft*3.3-10;
+  const X=zz=>ix+(zz-z0)/(z1-z0)*iw;
+  const Y=r=>iy+ih-(r-rmin)/(rmax-rmin)*ih;
+  ctx.save();
+  const dc=zn.sgn<0?PAL.under:PAL.over,zf=zn.sgn<0?PAL.underF:PAL.overF;
+  ctx.fillStyle=PAL.labBg;ctx.strokeStyle=dc;ctx.lineWidth=2;
+  ctx.fillRect(bx,by,bw,bh);ctx.strokeRect(bx,by,bw,bh);
+  ctx.textBaseline="alphabetic";
+  ctx.font=`700 ${hd}px ${fnt()}`;ctx.textAlign="left";ctx.fillStyle=dc;
+  ctx.fillText(`🔍 차이 ${PINZ+1}/${zs.length} — ${zoneDimTxt(zn,1)}`,bx+8,by+hd+1);
+  ctx.font=`${ft}px ${fnt()}`;ctx.fillStyle=PAL.dim;
+  ctx.fillText(`Z${zn.a.toFixed(2)}~Z${zn.b.toFixed(2)} (${zn.len.toFixed(2)} mm) · ${rWin} · ✕ 해제`,bx+8,by+hd*2+1);
+  /* 내부 클리핑 */
+  ctx.save();ctx.beginPath();ctx.rect(ix,iy,iw,ih);ctx.clip();
+  ctx.fillStyle=zf;
+  ctx.fillRect(X(zn.a),iy,Math.max(2,X(zn.b+CFG.dz)-X(zn.a)),ih);
+  /* Δ 면적 (①②사이) */
+  const pts=[];
+  for(let zz=z0;zz<=z1;zz+=CFG.dz){
+    const a=rAtRun(RA,zz),b=rAtRun(RB,zz);
+    if(a>0&&b>0)pts.push([zz,a,b]);
+  }
+  if(pts.length>1){
+    ctx.beginPath();
+    pts.forEach(([zz,a],k)=>{const x=X(zz),y=Y(a);k?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    for(let k=pts.length-1;k>=0;k--)ctx.lineTo(X(pts[k][0]),Y(pts[k][2]));
+    ctx.closePath();ctx.fillStyle=zf;ctx.fill();
+  }
+  /* 반경 눈금 */
+  [rmin,(rmin+rmax)/2,rmax].forEach(r=>{
+    ctx.strokeStyle=PAL.grid;ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(ix,Y(r));ctx.lineTo(ix+iw,Y(r));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=PAL.dim;ctx.font=`${ft*0.95}px ${fnt()}`;ctx.textAlign="left";
+    ctx.fillText(`ø${(r*2).toFixed(3)}`,ix+2,Y(r)-2);
+  });
+  const curve=(rr,col)=>{
+    ctx.beginPath();let on=false;
+    for(let zz=z0;zz<=z1;zz+=CFG.dz){
+      const v=rAtRun(rr,zz);if(v<=0){on=false;continue;}
+      const x=X(zz),y=Y(v);on?ctx.lineTo(x,y):(ctx.moveTo(x,y),on=true);
+    }
+    ctx.strokeStyle=col;ctx.lineWidth=3;ctx.stroke();
+  };
+  /* 최대 차이 지점의 ①②반경을 수평 기준선으로 → 0.02 mm 단차가 두 층으로 보인다 */
+  [[raM,PAL.A],[rbM,PAL.B]].forEach(([v,c])=>{
+    if(v<=0)return;
+    ctx.strokeStyle=c;ctx.lineWidth=1.3;ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(ix,Y(v));ctx.lineTo(ix+iw,Y(v));ctx.stroke();ctx.setLineDash([]);
+  });
+  curve(RA,PAL.A);curve(RB,PAL.B);
+  /* 최대 차이 지점 표시 */
+  const ra=raM,rb=rbM;
+  if(ra>0&&rb>0){
+    ctx.strokeStyle=dc;ctx.lineWidth=1.6;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(X(zn.mxZ),Y(ra));ctx.lineTo(X(zn.mxZ),Y(rb));ctx.stroke();ctx.setLineDash([]);
+    [ra,rb].forEach(v=>{ctx.beginPath();ctx.arc(X(zn.mxZ),Y(v),3.2,0,7);ctx.fillStyle=dc;ctx.fill();});
+  }
+  ctx.restore();
+  ctx.strokeStyle=PAL.line||PAL.grid;ctx.lineWidth=1;ctx.strokeRect(ix,iy,iw,ih);
+  /* 수치 */
+  ctx.textAlign="left";ctx.font=`700 ${ft*1.1}px ${fnt()}`;
+  ctx.fillStyle=PAL.labFg;
+  ctx.fillText(`@Z${zn.mxZ}   ① ø${(ra*2).toFixed(3)}   ② ø${(rb*2).toFixed(3)}`,bx+8,by+bh-ft*1.8);
+  ctx.fillStyle=dc;
+  ctx.fillText(`Δø${zn.dd!==undefined?((zn.dd>0?"+":"")+zn.dd.toFixed(3)):"—"} ${zn.kind||""} · |Δr| ${zn.mx.toFixed(4)} (허용 ±${CFG.tol})`,bx+8,by+bh-ft*0.45);
+  ctx.restore();
+}
+function drawTrail(t,run){
+  if(!run.TRAIL)return;
+  ctx.save();ctx.lineCap="round";
+  const cp=run.CUR?run.CUR.op.pass:-1,cs=run.CUR?run.CUR.op.tseg:null;
+  for(const {op,p} of run.TRAIL){
+    if(op.kind==="dwell"||op.kind==="aux"||op.kind==="skipped")continue;
+    if(!SHOWPATH){
+      if(op.kind==="thread"&&!(op.tseg===cs&&op.pass===cp))continue;
+      if(op.kind==="rapid"&&op.prog!==run.MAIN&&!(op.tseg===cs&&op.pass===cp))continue;
+    }
+    const T2=tool(op.tool);
+    let c,w,d,al;
+    if(op.axis){c=PAL.mill;w=1.6;d=[6,3];al=.85;}
+    else if(op.kind==="rapid"){c=PAL.g0;w=1.0;d=[5,5];al=.25;}
+    else if(op.kind==="thread"){c=(Math.abs((op.q||0)-180)<1)?PAL.th2:PAL.th1;w=2.0;d=[];al=.95;}
+    else if(T2.kind==="cutoff"){c=PAL.cut;w=2.4;d=[];al=.95;}
+    else if(op.arc){c=PAL.arc;w=1.9;d=[];al=.9;}
+    else{c=PAL.g1;w=1.7;d=[];al=.75;}
+    const zo=T2.zOff||0,xo=T2.xOff||0;
+    const x1=op.x0+(op.x1-op.x0)*p,z1=op.z0+(op.z1-op.z0)*p;
+    ctx.strokeStyle=c;ctx.lineWidth=w;ctx.setLineDash(d);ctx.globalAlpha=al;
+    ctx.beginPath();
+    ctx.moveTo(t.X(op.z0+zo),t.Y(op.x0/2+xo/2));
+    ctx.lineTo(t.X(z1+zo),t.Y(x1/2+xo/2));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);ctx.globalAlpha=1;ctx.restore();
+}
+function drawTool(t,run){
+  if(!run.CUR)return;
+  const op=run.CUR.op,T2=tool(op.tool);
+  const zo=T2.zOff||0,xo=T2.xOff||0;
+  const x=op.x0+(op.x1-op.x0)*run.CUR.p+xo,z=op.z0+(op.z1-op.z0)*run.CUR.p+zo;
+  const r=x/2,off=r>VIEW.rmax-0.12,rD=off?VIEW.rmax-0.12:r;
+  const px=t.X(z),py=t.Y(rD);
+  const col=op.axis?PAL.mill:op.kind==="thread"?(Math.abs((op.q||0)-180)<1?PAL.th2:PAL.th1)
+    :T2.kind==="cutoff"?PAL.cut:op.kind==="feed"?(op.arc?PAL.arc:PAL.g1):PAL.g0;
+  ctx.save();
+  ctx.globalAlpha=.4;
+  ctx.strokeStyle=PAL.stem;ctx.lineWidth=Math.max(4,VH*0.013);
+  ctx.beginPath();ctx.moveTo(px,t.y0);ctx.lineTo(px,py-4);ctx.stroke();
+  ctx.strokeStyle=col;ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(px,t.y0);ctx.lineTo(px,py-4);ctx.stroke();
+  ctx.globalAlpha=1;
+  const s=Math.max(5,VH*0.013);
+  ctx.fillStyle=col;ctx.beginPath();
+  ctx.moveTo(px,py);ctx.lineTo(px-s*0.8,py-s*1.5);ctx.lineTo(px+s*0.8,py-s*1.5);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=PAL.tipE;ctx.lineWidth=1.1;ctx.stroke();
+  ctx.fillStyle=col;ctx.textAlign="left";
+  ctx.font=`700 ${Math.max(8,VH*0.017)}px ${fnt()}`;
+  ctx.fillText(op.tool,px+s,py-s*0.6);
+  ctx.restore();
+}
+function drawAnno(){
+  const p=paneRects(),t=TP("A");
+  const bot=p.dual?p.B:p.A;
+  ctx.save();ctx.font=`${Math.max(8,VH*0.017)}px ${fnt()}`;
+  ctx.fillStyle=PAL.dim;ctx.textAlign="center";
+  const span=VIEW.z1-VIEW.z0,step=span>60?10:span>25?5:span>10?2:1;
+  for(let z=Math.ceil(VIEW.z0/step)*step;z<=VIEW.z1;z+=step)
+    ctx.fillText("Z"+z,t.X(z),bot.y0+bot.h+15);
+  ctx.textAlign="left";
+  ctx.fillText("↕ X 직경(반경 도시) · ← Z →",4,bot.y0+bot.h+15);
+  ctx.strokeStyle=PAL.axis;ctx.lineWidth=1.2;
+  const unit=span>30?10:span>12?5:2;
+  const gy=bot.y0+bot.h+11,gx1=VW-14,gx0=gx1-unit*t.sc;
+  ctx.beginPath();ctx.moveTo(gx0,gy);ctx.lineTo(gx1,gy);ctx.moveTo(gx0,gy-3);ctx.lineTo(gx0,gy+3);
+  ctx.moveTo(gx1,gy-3);ctx.lineTo(gx1,gy+3);ctx.stroke();
+  ctx.textAlign="right";ctx.fillStyle=PAL.dim;ctx.fillText(unit+" mm",gx1,gy-5);
+  ctx.restore();
+}
+/* 일치율 대형 표시 (우상단) */
+function drawMatch(){
+  if(!DIFF)return;
+  const p=paneRects();
+  const col=DIFF.verdict==="same"?PAL.g1:DIFF.verdict==="near"?PAL.mill:PAL.badL;
+  const big=`${DIFF.volPct.toFixed(1)}%`;
+  const sub=`체적 일치율 · 구간 ${DIFF.zonePct.toFixed(1)}% · 윤곽 ${DIFF.profPct.toFixed(1)}%`;
+  ctx.save();
+  const f1=Math.max(16,VH*0.046),f2=Math.max(8,VH*0.016);
+  ctx.font=`700 ${f1}px ${fnt()}`;const w1=ctx.measureText(big).width;
+  ctx.font=`${f2}px ${fnt()}`;const w2=ctx.measureText(sub).width;
+  const w=Math.max(w1,w2)+18,h=f1*1.15+f2*1.5+8;
+  const x=VW-w-8,y=Math.max(24,VH*0.030);
+  ctx.fillStyle=PAL.labBg;ctx.strokeStyle=col;ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(x,y,w,h,5);ctx.fill();ctx.stroke();
+  ctx.textAlign="center";ctx.fillStyle=col;ctx.font=`700 ${f1}px ${fnt()}`;
+  ctx.fillText(big,x+w/2,y+f1*0.95);
+  ctx.fillStyle=PAL.dim;ctx.font=`${f2}px ${fnt()}`;
+  ctx.fillText(sub,x+w/2,y+f1*1.05+f2*1.2);
+  ctx.restore();
+}
+function drawDone(){
+  const done=activeRuns().length&&activeRuns().every(r=>r.DONE);
+  if(!done)return;
+  const fa=RA.FINAL,fb=RB.loaded?RB.FINAL:null;
+  let l1,l2,col;
+  if(DIFF){
+    const V=verdictLabel();
+    col=DIFF.verdict==="same"?PAL.g1:DIFF.verdict==="near"?PAL.mill:PAL.badL;
+    l1=`■ 검증 : ${V} · 종합 ${DIFF.totPct.toFixed(1)}% (형상 ${DIFF.volPct.toFixed(1)}% × 윤곽 ${DIFF.profPct.toFixed(1)}%) · 형성구간 ${DIFF.pathPct.toFixed(1)}%`;
+    l2=`치수 ① 전장 ${fa.len.toFixed(2)} / 외경 ø${fa.shaft.toFixed(3)} / 골 ø${fa.root.toFixed(3)}  →  ② ${fb.len.toFixed(2)} / ø${fb.shaft.toFixed(3)} / ø${fb.root.toFixed(3)}`
+      +`   (골 ${((fb.root-fa.root)>=0?"+":"")+(fb.root-fa.root).toFixed(3)} · 외경 ${((fb.shaft-fa.shaft)>=0?"+":"")+(fb.shaft-fa.shaft).toFixed(3)})   ·   초과 ${DIFF.overLen.toFixed(2)} mm`;
+  }else{
+    col=fa.sep?PAL.A:PAL.badL;
+    l1=`■ ${RA.B.stat.endCode?RA.B.stat.endCode+" 프로그램 종료":"프로그램 끝"} · ${fa.sep?"부품 분리 완료":"미분리"}`;
+    l2=`전장 ${fa.len.toFixed(2)} mm · 외경 ø${fa.shaft.toFixed(3)} · 골경 ø${fa.root.toFixed(3)} · 헤드 ø${fa.head.toFixed(3)}`;
+  }
+  ctx.save();
+  /* 폭에 맞게 자동 축소, 그래도 넘치면 1줄만 남긴다 (양옆 잘림 방지) */
+  let f1=Math.max(9,VH*0.021),txt=l1+"   "+l2;
+  ctx.font=`700 ${f1}px ${fnt()}`;
+  while(ctx.measureText(txt).width+18>VW-10&&f1>8.5){f1-=0.5;ctx.font=`700 ${f1}px ${fnt()}`;}
+  if(ctx.measureText(txt).width+18>VW-10){txt=l1;
+    f1=Math.max(9,VH*0.021);ctx.font=`700 ${f1}px ${fnt()}`;
+    while(ctx.measureText(txt).width+18>VW-10&&f1>8){f1-=0.5;ctx.font=`700 ${f1}px ${fnt()}`;}}
+  const w=Math.min(VW-10,ctx.measureText(txt).width+18),h=f1*1.6;
+  const x=(VW-w)/2,y=VH-h-1;
+  ctx.fillStyle=PAL.labBg;ctx.strokeStyle=col;ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.roundRect(x,y,w,h,4);ctx.fill();ctx.stroke();
+  ctx.textAlign="center";ctx.fillStyle=col;
+  ctx.fillText(txt,VW/2,y+h*0.7);
+  ctx.restore();
+}
+function drawDiffStrip(){
+  const c=$("dcv"),g=c.getContext("2d");
+  g.setTransform(DPR,0,0,DPR,0,0);
+  const W=c.width/DPR,H=c.height/DPR;
+  g.clearRect(0,0,W,H);g.fillStyle=PAL.bg;g.fillRect(0,0,W,H);
+  if(!RB.loaded||!RA.partZ||!RB.partZ){
+    g.fillStyle=PAL.dim;g.font=`${Math.max(9,H*0.30)}px ${fnt()}`;g.textAlign="center";
+    g.fillText("② 비교 프로그램을 넣고 ▶ 재생하면 |Δr| 이 실시간으로 그려집니다",W/2,H*0.6);
+    return;
+  }
+  const t=TP("A");
+  const z0=Math.min(RA.partZ[0],RB.partZ[0]),z1=Math.max(RA.partZ[1],RB.partZ[1]);
+  const done=activeRuns().every(r=>r.DONE);
+  const yMax=Math.max(CFG.tol*3,(LIVE?LIVE.maxD:0)*1.15,(done&&DIFF?DIFF.maxD:0)*1.15);
+  const Y=v=>H-4-(v/yMax)*(H-14);
+  g.strokeStyle=PAL.mill;g.setLineDash([4,3]);g.lineWidth=1;
+  g.beginPath();g.moveTo(0,Y(CFG.tol));g.lineTo(W,Y(CFG.tol));g.stroke();g.setLineDash([]);
+  /* 최종 차이(연한 회색) 위에 현재 시점 차이(색)를 겹쳐 그린다 */
+  if(DIFF){
+    g.strokeStyle=PAL.dim;g.globalAlpha=.28;g.beginPath();
+    for(let i=0;i<DIFF.n;i++){
+      const z=DIFF.z0+i*CFG.dz;
+      if(z<VIEW.z0||z>VIEW.z1)continue;
+      const x=t.X(z);g.moveTo(x,H-4);g.lineTo(x,Y(DIFF.d[i]));
+    }
+    g.lineWidth=1;g.stroke();g.globalAlpha=1;
+  }
+  /* 과대(따뜻) / 과소(차가움) 를 나눠 그린다 — 어느 쪽으로 틀어졌는지 한눈에 */
+  let mx=0;
+  [1,-1].forEach(sg=>{
+    g.beginPath();let any=false;
+    for(let z=z0;z<=z1;z+=CFG.dz){
+      if(z<VIEW.z0||z>VIEW.z1)continue;
+      const ra=liveAt(RA,z),rb=liveAt(RB,z);
+      const raw=rb-ra,dd=dEff(Math.abs(raw));
+      if(dd<=0||(raw>=0?1:-1)!==sg)continue;
+      if(dd>mx)mx=dd;
+      const x=t.X(z);g.moveTo(x,H-4);g.lineTo(x,Y(dd));any=true;
+    }
+    if(any){g.strokeStyle=(sg<0?PAL.under:PAL.over);g.lineWidth=1.4;g.stroke();}
+  });
+  if(mx<=1e-9){                       // 차이 없음(또는 오프셋 보정 범위 내)
+    g.strokeStyle=PAL.g1;g.lineWidth=1.4;
+    g.beginPath();g.moveTo(0,H-5);g.lineTo(W,H-5);g.stroke();
+  }
+  g.fillStyle=PAL.dim;g.font=`${Math.max(8,H*0.22)}px ${fnt()}`;g.textAlign="left";
+  g.fillText(`허용 ±${CFG.tol.toFixed(3)} (OFFSET ±${CFG.ofs} 보정 후)`,4,Y(CFG.tol)-2);
+  g.textAlign="right";
+  g.fillText(done?"최종":"현재 진행",W-4,12);
+}
+
+/* ============================================================================
+   9. UI
+   ========================================================================== */
+const $=id=>document.getElementById(id);
+/* 프로그램 표시명: O번호가 없으면(O0000) 파일명으로 대체 */
+function progLabel(r,max){
+  if(!r||!r.loaded)return "—";
+  const noNum=!r.MAIN||/^O0+$/i.test(String(r.MAIN));
+  let s=noNum?((r.SRC||"무번호").split(",")[0].trim()):r.MAIN;
+  if(max&&s.length>max)s=s.slice(0,max-1)+"…";
+  return s;
+}
+function updateHeader(){
+  $("hA").textContent=RA.loaded?`① ${progLabel(RA,20)} (${RA.B?RA.B.ops.length:0}op)`:"① 미로드";
+  $("hA").className="badge "+(RA.loaded?"bg":"br");
+  $("hB").textContent=RB.loaded?`② ${progLabel(RB,20)} (${RB.B?RB.B.ops.length:0}op)`:"② 미로드";
+  $("hB").className="badge "+(RB.loaded?"bg":"br");
+  const r=focused();
+  $("hOfs").textContent=`±${CFG.ofs}`;
+  $("hStart").textContent=(CFG.startAtMarker&&r.STARTLINE!==null)
+    ?`L${r.STARTLINE+1} · 앞 ${r.PRESCAN.blocks}제외`:"선두";
+  $("discSrc").innerHTML=`① ${RA.SRC||"—"}`+(RB.loaded?` &nbsp;|&nbsp; ② ${RB.SRC}`:"");
+}
+function renderCode(){
+  renderPanel(RA,"codeA","cwA");
+  renderPanel(RB,"codeB","cwB");
+  const fnTxt=r=>r.loaded
+    ?`${progLabel(r)} · ${r.LINES.length}블록 · ${r.B?r.B.ops.length:0} op`
+    :"미로드 — 📂 넣기";
+  $("fnA").textContent=fnTxt(RA);
+  $("fnB").textContent=fnTxt(RB);
+  $("fnA").title=RA.SRC||"";$("fnB").title=RB.SRC||"";
+  $("hdA").classList.toggle("on",FOCUS==="A");
+  $("hdB").classList.toggle("on",FOCUS==="B");
+}
+function renderPanel(r,boxId,wrapId){
+  const box=$(boxId),wrap=$(wrapId);
+  box.innerHTML="";wrap.classList.toggle("empty",!r.loaded);
+  if(!r.loaded){
+    box.innerHTML=`<div class="empty-msg">
+      <span class="big">${r.id==="A"?"① 기준":"② 비교"} 프로그램 미로드</span>
+      위의 <b>📂 넣기</b> 버튼으로 NC 파일을 여세요
+      <div class="hint">${r.id==="B"?"창에 파일을 드래그해도 ② 로 들어갑니다":"메인 + 서브프로그램을 한 번에 여러 개 선택할 수 있습니다"}</div></div>`;
+    return;}
+  const showSub=$("cbAllSub").checked;
+  const frag=document.createDocumentFragment();
+  const s0=r.PROGS[r.MAIN]?r.PROGS[r.MAIN].start:0;
+  const preE=(CFG.startAtMarker&&r.STARTLINE!==null)?r.STARTLINE-1:-1;
+  const mk=(CFG.startMarker||"START").toUpperCase();
+  let i=0;
+  while(i<r.LINES.length){
+    const L=r.LINES[i];
+    if(!showSub&&L.prog!==r.MAIN){i++;continue;}
+    if(!r.FOLD.pre&&preE>=s0&&i===s0){
+      const d=document.createElement("div");d.className="fold";
+      d.textContent=`▸ 장비 기본 세팅 ${preE-s0+1}블록 미실행 · (${mk}) 앞`;
+      d.onclick=()=>{r.FOLD.pre=true;renderCode();updateUI();};
+      frag.appendChild(d);i=preE+1;continue;
+    }
+    if(!r.FOLD.ts&&r.REGION.tsStart>=0&&r.REGION.tsEnd>=r.REGION.tsStart&&i===r.REGION.tsStart){
+      const d=document.createElement("div");d.className="fold";
+      d.textContent=`▸ GOTO 건너뜀 ${r.REGION.tsEnd-r.REGION.tsStart+1}블록`;
+      d.onclick=()=>{r.FOLD.ts=true;renderCode();updateUI();};
+      frag.appendChild(d);i=r.REGION.tsEnd+1;continue;
+    }
+    const isSeg=L.tk.comment&&L.tk.words.length===0;
+    const isPre=preE>=s0&&i>=s0&&i<=preE;
+    const el=document.createElement("div");
+    el.className="ln"+(L.tk.oNum?" onum":"")+(L.tk.skip&&skipOn?" skip":"")
+      +(isSeg?" seg":"")+(isPre?" pre":"")+(i===r.STARTLINE?" startln":"");
+    el.id=r.id+"L"+i;
+    const n=document.createElement("span");n.className="n";n.textContent=i+1;
+    const c=document.createElement("span");
+    if(L.tk.comment&&L.text.trim().replace(/\([^)]*\)/g,"").trim()==="")c.className="c";
+    c.textContent=L.text.trim();
+    el.appendChild(n);el.appendChild(c);frag.appendChild(el);i++;
+  }
+  box.appendChild(frag);
+}
+function syncPanel(r,boxId,wrapId){
+  if(!r.loaded||!r.CUR)return;
+  const box=$(boxId),wrap=$(wrapId);
+  box.querySelectorAll(".ln.cur").forEach(e=>e.classList.remove("cur","th"));
+  const el=$(r.id+"L"+r.CUR.op.line);
+  if(!el)return;
+  el.classList.add("cur");
+  if(r.CUR.op.kind==="thread")el.classList.add("th");
+  box.style.transform=`translateY(${-Math.max(0,el.offsetTop-wrap.clientHeight/2+el.offsetHeight/2)}px)`;
+}
+let IFSEG=null;
+function buildInfeed(){
+  const r=focused();
+  const segs=r.loaded?Object.keys(r.PASSDATA):[];
+  const cur=(r.CUR&&r.PASSDATA[r.CUR.op.tseg])?r.CUR.op.tseg:segs[0];
+  const b=$("ifbars");b.innerHTML="";
+  const ps=cur?r.PASSDATA[cur]:null;
+  if(!ps||!ps.length){$("ifTitle").textContent="나사 절입 스케줄 — 대기";$("ifDetail").textContent="";IFSEG=null;return;}
+  const max=Math.max(...ps.map(p=>p.cum))||1;
+  ps.forEach((p,k)=>{
+    const d=document.createElement("div");
+    d.className="ifb"+(p.air?" air":"")+(p.spring?" spring":"");
+    d.style.height=(12+(p.cum/max)*88)+"%";
+    d.title=`패스 ${k+1}/${ps.length} · X ${p.x.toFixed(2)} · 절입 ${p.step.toFixed(3)} · 누적 ${p.cum.toFixed(3)}`;
+    b.appendChild(d);
+  });
+  IFSEG=cur;
+}
+function buildChips(){
+  const c=$("chips");c.innerHTML="";
+  const r=focused();if(!r.loaded||!r.B)return;
+  const seen={};
+  r.B.ops.forEach((o,k)=>{
+    if(!o.seg)return;
+    const id=o.seg+"#"+o.segIdx;
+    if(seen[id])return;seen[id]=1;
+    const d=document.createElement("div");
+    d.className="chip2"+(/THREAD|LOCKING/i.test(o.seg)?" th":"");
+    d.innerHTML=`<span class="nm"></span><span class="cd"></span>`;
+    d.querySelector(".nm").textContent=o.seg;
+    d.dataset.id=id;d.dataset.k=k;
+    d.title=`${o.seg} — 클릭하면 이 구간으로 이동 (구간 추적 시 이 구간의 차이만 강조)`;
+    /* 클릭 = 그 구간으로 이동 + 구간 추적 켜서 차이를 그 구간만 강조 */
+    d.onclick=()=>{
+      P.playing=false;setPlayBtn();
+      if(VIEWMODE!=="seg"){VIEWMODE="seg";$("vSeg").classList.add("on");$("vAll").classList.remove("on");}
+      PINZ=null;
+      const ops=r.B.ops;let end=k;
+      while(end+1<ops.length&&(ops[end+1].seg+"#"+ops[end+1].segIdx)===id)end++;
+      /* 구간의 마지막 "시간이 있는" 동작 안쪽으로 들어가야 한다.
+         dur=0 인 op 에 걸리면 다음 구간으로 넘어가 버린다 */
+      let last=end;while(last>k&&!(ops[last].dur>0.02))last--;
+      if(!(ops[last].dur>0.02)){last=k;let bd=-1;
+        for(let j=k;j<=end;j++)if((ops[j].dur||0)>bd){bd=ops[j].dur||0;last=j;}}
+      seekTo(masterFromRun(r,opStart(r,last)+(ops[last].dur||0)*0.9));
+    };
+    c.appendChild(d);
+  });
+  CHIPKEY="";decorateChips();
+}
+/* ── 칩(공정 구간)별 ①↔② 판정. 가공이 지나간 구간부터 순서대로 켜진다.
+      ✔ = 그 구간 허용 내 / Δ0.020 = 그 구간에서 벗어난 최대값 ── */
+let CHIPKEY="",LASTCHIP=null;
+function decorateChips(){
+  const r=focused();
+  const cur=r.CUR?r.CUR.idx:-1;
+  const done=activeRuns().length&&activeRuns().every(x=>x.DONE);
+  const key=`${r.id}|${cur}|${done?1:0}|${DIFF?1:0}|${RB.loaded?1:0}`;
+  if(key===CHIPKEY)return;CHIPKEY=key;
+  const Zd=zoneDiam(done);
+  document.querySelectorAll("#chips .chip2").forEach(d=>{
+    const cd=d.querySelector(".cd");
+    d.classList.remove("bad","over","under","good","dim");cd.textContent="";
+    if(!RB.loaded||!DIFF){d.title=d.querySelector(".nm").textContent;return;}
+    const passed=done||(cur>=0&&+d.dataset.k<=cur);
+    const q=r.SEGZ[d.dataset.id];
+    const nm=d.querySelector(".nm").textContent;
+    const zt=(q&&isFinite(q.a))?`Z${q.a.toFixed(2)}~Z${q.b.toFixed(2)}`:"—";
+    if(!passed){d.classList.add("dim");d.title=`${nm} (${zt}) — 아직 가공 전`;return;}
+    if(!q||!isFinite(q.a)){d.title=`${nm} — Z 구간 없음`;return;}
+    const v=Zd(q.a,q.b);
+    if(v&&Math.abs(v.dd)>CFG.ofs){
+      d.classList.add(v.dd>0?"over":"under");
+      cd.textContent=(v.dd>0?"+":"")+v.dd.toFixed(3);
+      d.title=`${nm} (${zt}) — 최종 형상 기준 이 구간 치수 차이\n`
+             +`@Z${v.z}  ① ø${v.dA.toFixed(3)} → ② ø${v.dB.toFixed(3)}  (${v.dd>0?"+":""}${v.dd.toFixed(3)} ${v.dd>0?"과대 · ② 가 굵음":"과소 · ② 가 얇음"})\n`
+             +`오프셋 보정 폭 ±${CFG.ofs} 초과 → 프로그램 수정 필요`;
+    }else{
+      d.classList.add("good");
+      const inb=v&&Math.abs(v.dd)>0.0005;
+      cd.textContent=inb?"≈":"✔";
+      d.title=`${nm} (${zt}) — `+(inb
+        ?`치수차 ${(v.dd>0?"+":"")+v.dd.toFixed(3)} → 오프셋 보정 폭 ±${CFG.ofs} 이내 (100% 처리)`
+        :`최종 형상 치수 동일`);
+    }
+  });
+}
+/* ── 최종 형상 기준 : 임의 Z 구간에서 "직경이 가장 크게 어긋난 지점" 을 찾아
+      ① ø → ② ø 와 편차(+과대 / −과소)로 돌려준다. 어느 공정이 깎았는지는 보지 않는다 ── */
+function zoneDiam(done){
+  return (za,zb)=>{
+    if(!DIFF)return null;
+    let mx=0,at=null;
+    const i0=Math.max(0,Math.round((za-DIFF.z0)/CFG.dz));
+    const i1=Math.min(DIFF.n-1,Math.round((zb-DIFF.z0)/CFG.dz));
+    for(let i=i0;i<=i1;i++){
+      const z=DIFF.z0+i*CFG.dz;
+      const ra=done?partAt(RA,z):liveAt(RA,z),rb=done?partAt(RB,z):liveAt(RB,z);
+      if(ra<=1e-9&&rb<=1e-9)continue;
+      const dd=Math.abs(ra-rb);
+      if(dd>mx){mx=dd;at={z:+z.toFixed(2),dA:ra*2,dB:rb*2,dd:+((rb-ra)*2).toFixed(3)};}
+    }
+    return at;
+  };
+}
+function renderWarns(){
+  const w=$("warns");w.innerHTML="";
+  const add=(cls,txt,ti)=>{const s=document.createElement("span");s.className="badge "+cls;s.textContent=txt;if(ti)s.title=ti;w.appendChild(s);};
+  add("bw","오프셋/노즈R 미반영");
+  Object.keys(TOOLS).filter(t=>TOOLS[t].kind==="thread").forEach(t=>
+    add(TOOLS[t].prof?"bv":"br",`${t} ${profLabel(t)}`,TOOLS[t].profNote||""));
+  if(RA.CUTINFO){
+    add("bb",`절단 Z${RA.CUTINFO.z.toFixed(2)} (오프셋 ${RA.CUTINFO.zOff})`);
+    if(!RA.CUTINFO.zOff)add("bw","절단 바이트 Z 오프셋 미설정 (⚙ 설정)",
+      "절단 바이트의 두께·장착 위치만큼 Z 오프셋을 넣어야 실제 절단 위치와 전장이 맞습니다");
+  }
+  activeRuns().forEach(r=>{
+    (r.B?r.B.warn:[]).forEach(t=>add("br",`${r.id==="A"?"①":"②"} ${t.length>36?t.slice(0,36)+"…":t}`,t));
+    if(r.B&&r.B.stat.unsup.size)add("br",`${r.id==="A"?"①":"②"} 미인식 ${r.B.stat.unsup.size}종`,[...r.B.stat.unsup.keys()].join(" "));
+  });
+  const nw=activeRuns().reduce((a,r)=>a+(r.B?r.B.warn.length:0),0);
+  $("hWarn").textContent=`경고 ${nw}`;
+}
+function renderVerdict(){
+  const box=$("matchBox"),big=$("mBig"),lab=$("mLab"),vd=$("mVerdict"),sub=$("mSub");
+  const tb=$("cmpTbl"),zt=$("zoneTbl");
+  const setG=(id,pct,cls)=>{const g=$(id);g.style.width=Math.max(0,Math.min(100,pct))+"%";
+    g.className="gfill"+(cls?" "+cls:"");};
+  if(!RB.loaded||!DIFF){
+    box.className="none";big.textContent="—";lab.textContent="① ↔ ② 형상 일치율 (체적)";
+    vd.textContent=RB.loaded?"비교 불가":"② 미로드";
+    sub.textContent="② 비교 프로그램을 넣고 ▶ 재생하면 게이지가 움직입니다";
+    setG("gVol",0);setG("gZone",0);setG("gProf",0);
+    $("tZone").textContent="—";$("tProf").textContent="—";
+    tb.innerHTML="";zt.innerHTML="";return;
+  }
+  const done=activeRuns().length&&activeRuns().every(r=>r.DONE);
+  const M=done?DIFF:LIVE;
+  const prog=MASTER?P.t/MASTER*100:0;
+  if(!M){
+    box.className="none";big.textContent="—";
+    lab.textContent="① ↔ ② 종합 일치율 (형상 × 윤곽)";
+    vd.textContent="검증 대기";sub.textContent="▶ 재생하면 가공 경로가 지나가며 게이지가 작동합니다";
+    setG("gVol",0);setG("gZone",0);setG("gProf",0);setG("gShape",0);setG("gPath",0);
+    ["tZone","tProf","tShape","tPath"].forEach(k=>$(k).textContent="—");
+  }else{
+    const cls=done?({same:"same",near:"near",diff:"diff"}[DIFF.verdict]):"none";
+    const pp=M.pathPct!==undefined?M.pathPct:100,tot=M.totPct!==undefined?M.totPct:M.volPct;
+    const gcls=(M.maxD<=CFG.tol)?"":(M.maxD<=CFG.tol*3?"near":"diff");
+    box.className=cls;
+    big.textContent=tot.toFixed(1)+"%";
+    lab.textContent=done?"① ↔ ② 종합 일치율 = 형상 × 윤곽 · 최종"
+      :`① ↔ ② 종합 일치율 = 형상 × 윤곽 · 진행 ${prog.toFixed(0)}%`;
+    setG("gVol",tot,gcls);
+    setG("gShape",M.volPct,(M.maxD<=CFG.tol)?"":(M.maxD<=CFG.tol*3?"near":"diff"));
+    setG("gPath",pp,pp>=99.5?"":(pp>=95?"near":"diff"));
+    setG("gZone",M.zonePct,gcls);setG("gProf",M.profPct,gcls);
+    $("tShape").textContent=M.volPct.toFixed(1)+"%";
+    $("tPath").textContent=pp.toFixed(1)+"%";
+    $("tZone").textContent=M.zonePct.toFixed(1)+"%";
+    $("tProf").textContent=M.profPct.toFixed(1)+"%";
+    vd.textContent=done
+      ?`${verdictMark()} ${verdictLabel()}`
+      :`▶ 가공 진행 중 ${prog.toFixed(0)}% — 최종 판정은 완료 후`;
+    const rawD=(done&&DIFF)?DIFF.maxRawDia:null;
+    const rawCls=(rawD!==null&&rawD>CFG.ofs)
+      ?((partAt(RB,DIFF.maxRawZ)>=partAt(RA,DIFF.maxRawZ))?"over":"under"):"ok";
+    sub.innerHTML=`오프셋 보정 후 |Δr| <b>${M.maxD.toFixed(4)}</b> mm${M.maxZ!==null?` @ Z${M.maxZ}`:""} · 허용 ±${CFG.tol}`
+      +(rawD!==null?`<br>실측 최대 치수차 <b class="${rawCls}">Δø${rawD.toFixed(3)}</b> @Z${DIFF.maxRawZ}`
+        +` · OFFSET 보정 폭 ±${CFG.ofs}`
+        +((rawD<=CFG.ofs&&rawD>0.0005)?` <b class="ok">→ 보정 가능 (100%)</b>`:""):"")
+      +(M.overLen>0?`<br>보정 후에도 초과 <b>${M.overLen.toFixed(2)}</b> / ${M.matLen.toFixed(2)} mm`
+                   :`<br>보정 후 초과 구간 없음`)
+      +((done&&DIFF.bandLen>0)?`<br><span class="ok">오프셋 보정 범위 내 차이 ${DIFF.bandLen.toFixed(2)} mm — 100% 처리</span>`:"")
+      +(done?`<br>종합 = 형상 ${M.volPct.toFixed(1)}% × 윤곽 ${M.profPct.toFixed(1)}% = <b>${tot.toFixed(1)}%</b>`
+             +`<br>RMS ${DIFF.rms.toFixed(4)} mm`
+             +(pp<99.95?`<br><b>형성 구간 불일치 ${pp.toFixed(1)}%</b> — ② 가 안 깎은(또는 ① 이 안 깎은) 구간 ${(DIFF.pathLenU-DIFF.pathLenI).toFixed(2)} mm`
+                 :`<br><span class="ok">형성 구간 동일 ${DIFF.pathLenI.toFixed(2)} mm — 경로가 달라도 결국 같은 면을 만들었습니다</span>`):"");
+  }
+  if(!done){tb.innerHTML="";zt.innerHTML="";return;}
+  const row=(n,a,b,dg)=>{
+    const g=dg===undefined?3:dg;
+    const d=(typeof a==="number"&&typeof b==="number")?b-a:null;
+    /* 오프셋 보정 폭(±CFG.ofs) 안이면 합격. 초과분만 상반색으로 물들인다 */
+    const bad=d!==null?Math.abs(d)>CFG.ofs:String(a)!==String(b);
+    const cls=d===null?(bad?"no":"ok"):(bad?(d>0?"over":"under"):(Math.abs(d)>0.0005?"ok":"ok"));
+    const f=v=>v===null||v===undefined||(typeof v==="number"&&!isFinite(v))
+      ?"—":(typeof v==="number"?v.toFixed(g):String(v));
+    const mark=d===null?(bad?"✖":"✔")
+      :((d>=0?"+":"")+d.toFixed(Math.max(g,3))+(bad?"":(Math.abs(d)>0.0005?" ≈":"")));
+    return `<tr><td>${n}</td><td>${f(a)}</td><td>${f(b)}</td>
+      <td class="${cls}" ${bad?`title="오프셋 보정 폭 ±${CFG.ofs} 초과 — ② 가 ${d>0?"과대(덜 깎임)":"과소(더 깎임)"}"`
+                          :`title="오프셋 ±${CFG.ofs} 이내 → 100% 처리"`}>${mark}</td></tr>`;
+  };
+  tb.innerHTML=`<tr><th>최종 형상 치수</th><th>①</th><th>②</th><th>Δ</th></tr>`
+    +DIFF.dims.map(x=>row(x.n+((x.ref!==null&&x.ref!==undefined&&x.ref>0)?` <span style="color:var(--dim)">(도면 ${x.ref})</span>`:""),x.a,x.b,x.dg)).join("")
+    +row("부품 분리",RA.FINAL.sep?"완료":"미분리",RB.FINAL.sep?"완료":"미분리")
+    +`<tr><td>실행 op</td><td>${RA.B.ops.length}</td><td>${RB.B.ops.length}</td>
+       <td class="${RA.B.ops.length===RB.B.ops.length?"ok":"est"}">${RB.B.ops.length-RA.B.ops.length}</td></tr>`
+    +`<tr><td>추정 시간 s</td><td>${RA.TOTAL.toFixed(1)}</td><td>${RB.TOTAL.toFixed(1)}</td>
+       <td class="${Math.abs(RA.TOTAL-RB.TOTAL)<0.5?"ok":"est"}">${(RB.TOTAL-RA.TOTAL).toFixed(1)}</td></tr>`
+    +`<tr><td>나사 구간</td><td>${Object.keys(RA.SEGDATA).length}</td><td>${Object.keys(RB.SEGDATA).length}</td>
+       <td class="${DIFF.segBad?"no":"ok"}">${Object.keys(RB.SEGDATA).length-Object.keys(RA.SEGDATA).length}</td></tr>`;
+  const zones=(done?DIFF.zones:zonesNow()).slice().sort((x,y)=>y.mx-x.mx||y.len-x.len);
+  zt.innerHTML=zones.length
+    ? `<tr><th>Z 구간</th><th>① ø</th><th>② ø</th><th>Δø</th><th>길이</th></tr>`
+      +zones.slice(0,8).map(zz=>`<tr><td>Z${zz.a.toFixed(2)}~Z${zz.b.toFixed(2)}</td>
+        <td>${zz.dA!==undefined?zz.dA.toFixed(3):"—"}</td>
+        <td>${zz.dB!==undefined?zz.dB.toFixed(3):"—"}</td>
+        <td class="${zz.sgn<0?"under":"over"}" title="${zz.kind||""} (② ${zz.sgn<0?"가 더 깎임":"가 덜 깎임"})">${zz.dd!==undefined?((zz.dd>0?"+":"")+zz.dd.toFixed(3)):"—"}</td>
+        <td>${zz.len.toFixed(2)}</td></tr>`).join("")
+      +(zones.length>8?`<tr><td colspan="5" style="color:var(--dim)">… 외 ${zones.length-8}구간 (최대 Δø 순)</td></tr>`:"")
+    : `<tr><td colspan="5" class="ok">허용 초과 구간 없음</td></tr>`;
+}
+function updateUI(){
+  syncPanel(RA,"codeA","cwA");
+  syncPanel(RB,"codeB","cwB");
+  const r=focused();
+  $("focusLab").textContent=r.id==="A"?"①":"②";
+  if(r.loaded&&r.CUR){
+    const op=r.CUR.op,T2=tool(op.tool);
+    const zo=T2.zOff||0;
+    const x=op.x0+(op.x1-op.x0)*r.CUR.p,z=op.z0+(op.z1-op.z0)*r.CUR.p;
+    $("st1").textContent=`${r.id==="A"?"①":"②"} ${progLabel(r,22)} · ${op.seg}`;
+    $("st2").textContent=op.prog!==r.MAIN?`└ ${op.prog}`+(op.pass>=0?` (${op.pass+1})`:""):"";
+    $("sTool").textContent=`${op.tool} ${T2.name}`;
+    const kl={rapid:"G0 급속",feed:op.arc?"G2/G3 원호":"G1 절삭",thread:"G32 나사",dwell:"G4 드웰",aux:"—",skipped:"/ 스킵"}[op.kind]||"—";
+    $("sMode").textContent=kl+(op.axis?" · Y/C":"")+(op.note?" · "+op.note:"");
+    $("sSeg").textContent=op.seg+(op.tseg?` → ${op.tseg}`:"");
+    $("sX").textContent=`${x.toFixed(3)} (R ${(Math.abs(x)/2).toFixed(3)})`;
+    $("sZ").textContent=zo?`${z.toFixed(3)} → ${(z+zo).toFixed(3)}`:z.toFixed(3);
+    $("sYCB").textContent=`${(op.y||0).toFixed(2)} / ${(op.c||0).toFixed(0)}° / ${(op.b||0).toFixed(0)}°`;
+    $("sSF").textContent=`${op.s||"—"} / ${op.f?op.f.toFixed(3):"—"}`;
+    const D=r.SEGDATA[op.tseg],ps=r.PASSDATA[op.tseg];
+    if(D&&ps&&op.pass>=0){
+      const pp=ps[op.pass]||{};
+      $("sTh").textContent=`${D.nStarts}줄 / ${D.lead.toFixed(2)} / ${D.pitch.toFixed(2)}`;
+      $("sPass").textContent=`${op.pass+1}/${ps.length} · ${(pp.step||0).toFixed(3)}`+(pp.air?" 공기":pp.spring?" 스프링":"");
+      $("sRoot").textContent=(pp.constDia?`ø${pp.constDia.toFixed(3)}`:"콘")+` · ${(pp.depMax||0).toFixed(3)}`;
+      $("sEng").textContent=`${D.contig.toFixed(2)} / ${D.constLen.toFixed(2)} mm`;
+      $("sPh").textContent=D.overlap!==undefined?`${D.overlap.toFixed(2)} · ${D.phaseOK?"연속 OK":"불연속"}`:"기준";
+      $("sPh").className="v "+(D.overlap===undefined?"":(D.phaseOK&&D.overlap>0?"ok":"no"));
+      if(IFSEG!==op.tseg)buildInfeed();
+      document.querySelectorAll("#ifbars .ifb").forEach((d,k)=>{
+        d.classList.toggle("on",k===op.pass);d.classList.toggle("past",k<op.pass);});
+      $("ifTitle").textContent=`${r.id==="A"?"①":"②"} ${op.tseg} — 패스 ${op.pass+1}/${ps.length}`;
+      $("ifDetail").textContent=`${D.tool} · ${D.sub} · X ${ps[0].x.toFixed(2)}→${ps[ps.length-1].x.toFixed(2)} · 깊이 ${(pp.depMax||0).toFixed(3)}`;
+    }else{
+      ["sTh","sPass","sRoot","sEng","sPh"].forEach(k=>{$(k).textContent="—";$(k).className="v";});
+    }
+    $("sProf").textContent=T2.kind==="thread"?profLabel(op.tool):"—";
+    document.querySelectorAll("#chips .chip2").forEach(d=>d.classList.toggle("on",d.dataset.id===op.seg+"#"+op.segIdx));
+    const cc=document.querySelector("#chips .chip2.on");
+    if(cc&&cc!==LASTCHIP){LASTCHIP=cc;cc.scrollIntoView({block:"nearest",inline:"nearest"});}
+  }
+  decorateChips();syncZoneBtns();
+  $("hPct").textContent=(MASTER?Math.round(P.t/MASTER*100):0)+"%";
+  $("scrub").value=MASTER?Math.round(P.t/MASTER*2000):0;
+  renderVerdict();
+  const nw=activeRuns().reduce((a,r)=>a+(r.B?r.B.warn.length:0),0);
+  const hm=$("hMatch"),done0=activeRuns().length&&activeRuns().every(x=>x.DONE);
+  if(LIVE||(done0&&DIFF)){
+    const M=done0&&DIFF?DIFF:LIVE;
+    hm.textContent=`종합 ${(M.totPct!==undefined?M.totPct:M.volPct).toFixed(1)}%`
+      +(M.pathPct!==undefined&&M.pathPct<99.95?` (형성 ${M.pathPct.toFixed(1)}%)`:"")
+      +(done0?"":" · 진행중");
+    hm.className="badge "+(done0&&DIFF?(DIFF.verdict==="same"?"bg":DIFF.verdict==="near"?"bw":"br")
+                                      :(M.maxD<=CFG.tol?"bg":M.maxD<=CFG.tol*3?"bw":"br"));
+  }else{hm.textContent="일치율 —";hm.className="badge bb";}
+  if(LIVE){
+    $("dTitle").textContent=`형상 차이 |Δr| (OFFSET ±${CFG.ofs} 보정 후) — 현재 일치율 ${LIVE.volPct.toFixed(1)}%`
+      +(done0&&DIFF?` (최종 ${DIFF.volPct.toFixed(1)}%)`:"");
+    $("dSub").textContent=`현재 최대 ${LIVE.maxD.toFixed(4)} mm`+(LIVE.maxZ!==null?` @ Z${LIVE.maxZ}`:"")
+      +` · 허용 ±${CFG.tol} · 초과 ${LIVE.overLen.toFixed(2)} / ${LIVE.matLen.toFixed(2)} mm`;
+  }
+  const allDone=activeRuns().length&&activeRuns().every(x=>x.DONE);
+  if(VIEWMODE==="seg"&&!allDone){const g=segTarget();if(g)VTARGET=g;}
+  draw();drawDiffStrip();
+}
+
+/* ── 루프 ── */
+let acc=0,last=performance.now();
+const DT=1/120;
+function loop(now){
+  const dtr=Math.min(0.25,(now-last)/1000);last=now;
+  if(TOASTT>0){TOASTT-=dtr;if(TOASTT<=0)$("banner").style.opacity=0;}
+  if(VIEWMODE!=="manual"){
+    const k=1-Math.pow(0.0025,dtr);
+    const nz0=VIEW.z0+(VTARGET.z0-VIEW.z0)*k,nz1=VIEW.z1+(VTARGET.z1-VIEW.z1)*k;
+    if(Math.abs(nz0-VIEW.z0)>1e-4||Math.abs(nz1-VIEW.z1)>1e-4){VIEW.z0=nz0;VIEW.z1=nz1;draw();drawDiffStrip();}
+  }
+  if(P.playing&&RA.B){
+    acc+=dtr*P.spd;let moved=false;
+    while(acc>=DT){acc-=DT;P.t+=DT;moved=true;}
+    if(moved){
+      if(P.t>=MASTER){
+        if(P.loop){P.t=0;seekTo(0);}
+        else{P.t=MASTER;P.playing=false;setPlayBtn();seekTo(MASTER);pinDone();}
+      }else seekTo(P.t);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+function pinDone(){
+  let a=1e9,b=-1e9;
+  activeRuns().forEach(r=>{const m=(R=r,measure());
+    if(m.z0!==null){a=Math.min(a,m.z0);b=Math.max(b,m.partEnd!==null?m.partEnd:m.z1);}
+    if(r.CUTINFO)b=Math.max(b,r.CUTINFO.z+r.CUTINFO.w+1.5);});
+  R=RA;
+  if(!isFinite(a)){a=0;b=CFG.partLen;}
+  VTARGET={z0:a-2,z1:b+2};
+  if(VIEWMODE==="seg"){VIEW.z0=VTARGET.z0;VIEW.z1=VTARGET.z1;}
+  draw();
+}
+function setPlayBtn(){$("bPlay").textContent=P.playing?"⏸":"▶";}
+let TOASTT=0;
+function toast(m){const b=$("banner");b.textContent=m;b.style.opacity=1;TOASTT=4.0;}
+
+/* ── 컨트롤 ── */
+$("bPlay").onclick=()=>{P.playing=!P.playing;last=performance.now();setPlayBtn();};
+$("bHome").onclick=()=>{P.playing=false;setPlayBtn();seekTo(0);};
+$("bEnd").onclick=()=>{P.playing=false;setPlayBtn();seekTo(MASTER);pinDone();};
+$("bPrev").onclick=()=>stepBlock(-1);
+$("bNext").onclick=()=>stepBlock(1);
+document.querySelectorAll("[data-spd]").forEach(b=>b.onclick=()=>{
+  P.spd=+b.dataset.spd;$("spdLbl").textContent="×"+b.dataset.spd;
+  document.querySelectorAll("[data-spd]").forEach(x=>x.classList.remove("on"));b.classList.add("on");});
+$("bSync").onclick=()=>{SYNC=SYNC==="pct"?"abs":"pct";
+  $("bSync").classList.toggle("on",SYNC==="pct");
+  $("bSync").textContent=SYNC==="pct"?"진행률 동기":"절대 시간";seekTo(P.t);};
+$("bSkip").onclick=()=>{
+  skipOn=!skipOn;$("bSkip").classList.toggle("on",skipOn);
+  $("bSkip").textContent="/ 스킵 "+(skipOn?"ON":"OFF");$("hSkip").textContent=skipOn?"ON":"OFF";
+  rebuildAll();};
+$("bLoop").onclick=()=>{P.loop=!P.loop;$("bLoop").classList.toggle("on",P.loop);};
+$("bFs").onclick=()=>{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();};
+$("scrub").oninput=e=>{P.playing=false;setPlayBtn();seekTo(MASTER*e.target.value/2000);};
+$("cbAllSub").onchange=()=>{renderCode();updateUI();};
+function setFocus(id){
+  if(id==="B"&&!RB.loaded)return;
+  FOCUS=id;
+  $("hdA").classList.toggle("on",id==="A");$("hdB").classList.toggle("on",id==="B");
+  buildChips();buildInfeed();updateHeader();updateUI();
+}
+$("hdA").onclick=e=>{if(e.target.tagName!=="BUTTON")setFocus("A");};
+$("hdB").onclick=e=>{if(e.target.tagName!=="BUTTON")setFocus("B");};
+$("vSeg").onclick=()=>{PINZ=null;VIEWMODE="seg";$("vSeg").classList.add("on");$("vAll").classList.remove("on");
+  const g=segTarget();if(g)VTARGET=g;};
+$("vAll").onclick=()=>{VIEWMODE="all";$("vAll").classList.add("on");$("vSeg").classList.remove("on");fitAll(false);};
+$("vzPrev").onclick=()=>gotoZone(-1);
+$("vzNext").onclick=()=>gotoZone(1);
+$("vzOff").onclick=()=>{PINZ=null;fitAll(false);draw();};
+function syncZoneBtns(){
+  const zs=DIFF?zonesNow():[];
+  const has=zs.length>0;
+  ["vzPrev","vzNext","vzOff"].forEach(id=>{const b=$(id);b.disabled=!has;b.style.opacity=has?1:.35;});
+  $("vzOff").classList.toggle("on",PINZ!==null);
+  $("vzNext").textContent=(PINZ!==null&&has)?`차이 ${PINZ+1}/${zs.length} ▶`:"차이 ▶";
+}
+$("vRef").onclick=()=>{SHOWREF=!SHOWREF;$("vRef").classList.toggle("on",SHOWREF);draw();};
+$("vGhost").onclick=()=>{SHOWGHOST=!SHOWGHOST;$("vGhost").classList.toggle("on",SHOWGHOST);draw();};
+$("vDiff").onclick=()=>{SHOWDIFF=!SHOWDIFF;$("vDiff").classList.toggle("on",SHOWDIFF);draw();};
+$("vPath").onclick=()=>{SHOWPATH=!SHOWPATH;$("vPath").classList.toggle("on",SHOWPATH);draw();};
+$("vTheme").onclick=()=>setTheme(THEMENAME==="light"?"dark":"light");
+cv.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const t=TP("A"),zc=t.Zof(e.offsetX),f=Math.exp(e.deltaY*0.0016);
+  let a=zc+(VIEW.z0-zc)*f,b=zc+(VIEW.z1-zc)*f;
+  if(b-a<0.6)return;
+  VIEWMODE="manual";$("vSeg").classList.remove("on");$("vAll").classList.remove("on");
+  VIEW.z0=a;VIEW.z1=b;VTARGET={z0:a,z1:b};draw();drawDiffStrip();
+},{passive:false});
+let dragS=null;
+cv.addEventListener("pointerdown",e=>{dragS={x:e.offsetX,z0:VIEW.z0,z1:VIEW.z1};cv.classList.add("drag");cv.setPointerCapture(e.pointerId);});
+cv.addEventListener("pointermove",e=>{
+  if(!dragS)return;
+  const t=TP("A"),d=(e.offsetX-dragS.x)/t.sc;
+  VIEWMODE="manual";$("vSeg").classList.remove("on");$("vAll").classList.remove("on");
+  VIEW.z0=dragS.z0-d;VIEW.z1=dragS.z1-d;VTARGET={z0:VIEW.z0,z1:VIEW.z1};draw();drawDiffStrip();
+});
+cv.addEventListener("pointerup",()=>{dragS=null;cv.classList.remove("drag");});
+addEventListener("keydown",e=>{
+  if($("modal").classList.contains("on")&&e.key==="Escape"){$("modal").classList.remove("on");return;}
+  if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  const S=[1,2,5,10,25,50,100];
+  if(e.key===" "){e.preventDefault();$("bPlay").onclick();}
+  else if(e.key==="ArrowLeft")stepBlock(-1);
+  else if(e.key==="ArrowRight")stepBlock(1);
+  else if(e.key==="ArrowUp"){P.spd=S[Math.min(S.length-1,S.indexOf(P.spd)+1)]||P.spd;$("spdLbl").textContent="×"+P.spd;}
+  else if(e.key==="ArrowDown"){P.spd=S[Math.max(0,S.indexOf(P.spd)-1)];$("spdLbl").textContent="×"+P.spd;}
+  else if(e.key==="Home")$("bHome").onclick();
+  else if(e.key==="End")$("bEnd").onclick();
+  else if(e.key==="1")setFocus("A");
+  else if(e.key==="2")setFocus("B");
+  else if(e.key.toLowerCase()==="f")$("bFs").onclick();
+  else if(e.key.toLowerCase()==="s")$("bSkip").onclick();
+  else if(e.key.toLowerCase()==="a")$("vAll").onclick();
+  else if(e.key.toLowerCase()==="g")$("vSeg").onclick();
+});
+
+/* ── 로드 ── */
+let SLOT="A";
+function openFiles(slot){SLOT=slot;$("fin").click();}
+$("bLoadA").onclick=()=>openFiles("A");
+$("bLoadB").onclick=()=>openFiles("B");
+$("fin").onchange=async e=>{
+  const fs=[...e.target.files];e.target.value="";
+  if(!fs.length)return;
+  const list=[];for(const f of fs)list.push({name:f.name,text:await f.text()});
+  loadInto(SLOT==="A"?RA:RB,list,false);
+  rebuildAll();if(SLOT==="B")setFocus("B");
+  toast("② 로드 완료 — ▶ 재생하면 가공이 진행되며 일치율 게이지가 작동합니다");
+};
+function clearB(){
+  Object.assign(RB,newRun("B","② 변환"));
+  FOCUS="A";DIFF=null;rebuildAll();setFocus("A");
+}
+$("bClearB").onclick=clearB;
+$("bClearB2").onclick=e=>{e.stopPropagation();clearB();};
+let dragN=0;
+addEventListener("dragenter",e=>{e.preventDefault();if(++dragN){$("dropTxt").textContent=
+  RA.loaded?"파일을 놓으면 ② 비교 슬롯에 들어갑니다 (①은 📂 넣기 버튼으로)"
+           :"파일을 놓으면 ① 기준 슬롯에 들어갑니다 (①이 비어 있습니다)";
+  $("drop").classList.add("on");}});
+addEventListener("dragover",e=>e.preventDefault());
+addEventListener("dragleave",e=>{if(--dragN<=0){dragN=0;$("drop").classList.remove("on");}});
+addEventListener("drop",async e=>{
+  e.preventDefault();dragN=0;$("drop").classList.remove("on");
+  const fs=[...(e.dataTransfer.files||[])];if(!fs.length)return;
+  const list=[];for(const f of fs)list.push({name:f.name,text:await f.text()});
+  /* ① 이 비어 있으면 먼저 ① 로, 그 다음부터 ② 로 */
+  const toA=!RA.loaded;
+  loadInto(toA?RA:RB,list,false);
+  rebuildAll();setFocus(toA?"A":"B");
+  toast(toA?"① 기준 로드 완료 — 이어서 ② 비교 프로그램을 넣으세요"
+           :"② 로드 완료 — ▶ 재생하면 일치율 게이지가 작동합니다");
+});
+$("bPaste").onclick=()=>{
+  $("mbox").innerHTML=`<h3>프로그램 붙여넣기</h3>
+  <p style="color:var(--dim)">O번호 줄 기준으로 자동 분할합니다. 넣을 슬롯을 고르세요.</p>
+  <div style="display:flex;gap:.5em;margin:.4em 0">
+    <label class="sw"><input type="radio" name="sl" value="A"> ① 기준</label>
+    <label class="sw"><input type="radio" name="sl" value="B" checked> ② 변환</label></div>
+  <textarea id="pt" style="min-height:18em"></textarea>
+  <div style="margin-top:.5em;display:flex;gap:.5em"><button id="ptOk" class="pri">읽어들이기</button>
+  <button onclick="document.getElementById('modal').classList.remove('on')">취소</button></div>`;
+  $("modal").classList.add("on");
+  $("ptOk").onclick=()=>{
+    const txt=$("pt").value;if(!txt.trim())return;
+    const sl=$("mbox").querySelector('input[name="sl"]:checked').value;
+    const parts=[];let cur=null;
+    txt.split(/\n/).forEach(l=>{
+      const tk=tokenize(l);
+      if(tk.oNum){cur={name:tk.oNum,text:l+"\n"};parts.push(cur);}
+      else if(cur)cur.text+=l+"\n";
+      else{cur={name:"PASTED-0000",text:l+"\n"};parts.push(cur);}
+    });
+    loadInto(sl==="A"?RA:RB,parts,false);
+    rebuildAll();if(sl==="B")setFocus("B");
+    toast("로드 완료 — ▶ 재생하면 일치율 게이지가 작동합니다");
+  };
+};
+
+/* ── 설정 ── */
+$("bSet").onclick=()=>{
+  const rows=Object.keys(TOOLS).map(t=>{
+    const T=TOOLS[t],isTh=T.kind==="thread";
+    return `<tr><td><b>${t}</b></td><td><input data-t="${t}" data-k="name" value="${T.name}" style="width:14em"></td>
+    <td>${T.kind}</td>
+    <td><input type="number" step="0.05" data-t="${t}" data-k="noseR" value="${T.noseR||0}"></td>
+    <td><input type="number" step="0.05" data-t="${t}" data-k="width" value="${T.width||0}"></td>
+    <td><input type="number" step="0.1" data-t="${t}" data-k="zOff" value="${T.zOff||0}">
+      ${T.kind==="cutoff"?`<select data-t="${t}" data-k="kerfSide">
+        <option value="+Z"${(T.kerfSide||"+Z")==="+Z"?" selected":""}>커프 +Z</option>
+        <option value="-Z"${T.kerfSide==="-Z"?" selected":""}>커프 −Z</option></select>`:""}
+      ${T.zOffNote?`<div style="color:var(--dim);font-size:var(--fs-lab)">${T.zOffNote}</div>`:""}</td>
+    <td>${isTh?`<select data-t="${t}" data-k="ptype">
+      <option value="none"${!T.prof?" selected":""}>미설정</option>
+      <option value="V"${T.prof&&T.prof.kind==="V"?" selected":""}>V 각도</option>
+      <option value="poly"${T.prof&&T.prof.kind==="poly"?" selected":""}>폴리라인</option></select>
+      각도<input type="number" step="1" data-t="${t}" data-k="angle" value="${(T.prof&&T.prof.angle)||60}">°
+      팁R<input type="number" step="0.01" data-t="${t}" data-k="tipR" value="${(T.prof&&T.prof.tipR)||0}">
+      <div style="color:var(--dim);font-size:var(--fs-lab)">${T.profNote||""}</div>
+      <textarea data-t="${t}" data-k="pts" style="min-height:3.5em" placeholder="u, d 한 줄씩">${T.prof&&T.prof.points?T.prof.points.map(p=>p.join(", ")).join("\n"):""}</textarea>`:"—"}</td></tr>`;
+  }).join("");
+  $("mbox").innerHTML=`<h3>설정</h3>
+  <h4>비교 판정</h4>
+  <table><tr><td><b>공구 OFFSET 보정 폭 (±ø mm)</b></td><td><input type="number" step="0.005" id="cOfs" value="${CFG.ofs}"></td>
+    <td colspan="2">장비에서 공구 오프셋으로 올리고 내릴 수 있는 폭. <b>이 안의 치수차는 100%</b> 로 봅니다
+      (반경 불감대 ±${(CFG.ofs/2).toFixed(3)}). 초과분만 <b class="over">과대</b>/<b class="under">과소</b> 로 표시</td></tr>
+  <tr><td>허용 반경 오차 (±mm)</td><td><input type="number" step="0.001" id="cTol" value="${CFG.tol}"></td>
+    <td colspan="2">오프셋 보정 후 남는 |Δr| 이 이 값 이하면 <b class="ok">형상 동일</b>, 3배 이하면 <b class="est">근사</b>, 초과면 <b class="no">다름</b></td></tr>
+  <tr><td>dz 해상도</td><td><input type="number" step="0.01" id="cDz" value="${CFG.dz}"> mm</td>
+    <td>실행 시작 마커</td><td><input id="cMk" value="${CFG.startMarker}" style="width:6em">
+    <label class="sw"><input type="checkbox" id="cMkOn" ${CFG.startAtMarker?"checked":""}> 앞 구간 제외</label></td></tr>
+  <tr><td>경로(형성 구간) 비교</td><td style="color:var(--dim)">자동</td>
+    <td colspan="2"><b>최종 형상을 만든 절삭 구간만</b> 비교합니다. 공중 이송·여유 로칭 패스,
+      블록/수식 개수 차이(예: Turning-1 이 10줄 vs 9줄)는 형상에 남지 않으므로 퍼센트를 깎지 않습니다.
+      어느 구간을 아예 안 깎아 소재가 남았을 때만 내려갑니다</td></tr>
+  <tr><td>소재경 ø</td><td><input type="number" step="0.1" id="cStock" value="${CFG.stockDia}"></td>
+    <td>급속 <span class="badge bw">가정</span></td><td><input type="number" step="1000" id="cRap" value="${CFG.rapid}"></td></tr>
+  <tr><td>도면 외경/골경</td><td><input type="number" step="0.1" id="dC" value="${DWG.crestDia}">
+    / <input type="number" step="0.1" id="dI" value="${DWG.rootDia}"></td>
+    <td>도면 헤드/전장</td><td><input type="number" step="0.1" id="dB" value="${DWG.headDia}">
+    / <input type="number" step="0.1" id="dA" value="${DWG.len}"></td></tr></table>
+  <h4>공구 / 나사 프로파일</h4>
+  <table><tr><th>T</th><th>이름</th><th>종류</th><th>노즈R</th><th>폭</th><th>Z오프셋</th><th>나사 프로파일</th></tr>${rows}</table>
+  <div style="display:flex;gap:.5em"><button id="setOk" class="pri">적용</button>
+  <button onclick="document.getElementById('modal').classList.remove('on')">닫기</button></div>
+  <p style="color:var(--dim)">프로파일 좌표계: <b>u</b> = 톱니 중심에서의 축방향 거리(±mm), <b>d</b> = 팁에서의 반경 상승(mm).</p>`;
+  $("modal").classList.add("on");
+  $("setOk").onclick=()=>{
+    $("mbox").querySelectorAll("[data-t]").forEach(el=>{
+      const T=TOOLS[el.dataset.t],k=el.dataset.k;
+      if(k==="name")T.name=el.value;
+      if(["noseR","width","zOff","xOff"].includes(k))T[k]=+el.value;
+      if(k==="kerfSide")T.kerfSide=el.value;
+    });
+    Object.keys(TOOLS).filter(t=>TOOLS[t].kind==="thread").forEach(t=>{
+      const q=s=>$("mbox").querySelector(`[data-t="${t}"][data-k="${s}"]`);
+      const ty=q("ptype").value;
+      if(ty==="none")TOOLS[t].prof=null;
+      else if(ty==="V")TOOLS[t].prof={kind:"V",angle:+q("angle").value,tipR:+q("tipR").value};
+      else{
+        const pts=q("pts").value.split(/\n/).map(l=>l.split(/[,\s]+/).filter(Boolean).map(Number))
+          .filter(a=>a.length>=2&&a.every(n=>isFinite(n))).sort((a,b)=>a[0]-b[0]);
+        TOOLS[t].prof=pts.length>=2?{kind:"poly",points:pts}:null;
+      }
+    });
+    CFG.tol=Math.max(0.0005,+$("cTol").value);
+    CFG.ofs=Math.max(0,+$("cOfs").value);
+    CFG.dz=Math.max(0.005,+$("cDz").value);
+    CFG.stockDia=+$("cStock").value;CFG.rapid=+$("cRap").value;
+    CFG.startMarker=$("cMk").value.trim()||"START";CFG.startAtMarker=$("cMkOn").checked;
+    DWG.crestDia=+$("dC").value;DWG.rootDia=+$("dI").value;
+    DWG.headDia=+$("dB").value;DWG.len=+$("dA").value;
+    activeRuns().forEach(r=>findStart(r));
+    $("modal").classList.remove("on");rebuildAll();
+  };
+};
+
+/* ── 리포트 ── */
+$("bRep").onclick=()=>{
+  const secOf=r=>{
+    if(!r.loaded)return `<p>미로드</p>`;
+    const s=r.B.stat,gf={},mf={};
+    r.LINES.forEach(L=>L.tk.words.forEach(w=>{
+      const k=w.a+String(+w.rawv);
+      if(w.a==="G")gf[k]=(gf[k]||0)+1;if(w.a==="M")mf[k]=(mf[k]||0)+1;}));
+    const t=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}(${v})`).join(" ");
+    const segRows=(r.ANALYSIS.order||[]).map(n=>{
+      const D=r.SEGDATA[n],sp=D.constSpan||D.engSpan;
+      return `<tr><td>${n}</td><td>${D.tool}</td><td>${D.sub}</td><td>${D.calls}</td>
+      <td>${D.nStarts}/${D.lead.toFixed(2)}/${D.pitch.toFixed(2)}</td>
+      <td>${sp?sp[0].toFixed(2)+"~"+sp[1].toFixed(2):"-"}</td>
+      <td>${D.contig.toFixed(2)}/${D.constLen.toFixed(2)}</td>
+      <td>${D.overlap!==undefined?D.overlap.toFixed(2):"-"}</td>
+      <td class="${D.phaseOK===undefined?"":(D.phaseOK?"ok":"no")}">${D.mult!==undefined?D.mult+"×":"기준"}</td>
+      <td>${D.depth.toFixed(3)}</td><td>${D.rootDia?"ø"+D.rootDia.toFixed(3):"콘"}</td><td>${D.g32.toFixed(1)}</td></tr>`;}).join("");
+    const m=r.FINAL;
+    return `<table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>파일</td><td>${r.SRC}</td></tr>
+    <tr><td>호출 트리 (★메인)</td><td>${Object.keys(r.PROGS).map(o=>`${o===r.MAIN?"★ ":"　"}<b>${o}</b> <span style="color:var(--dim)">${r.PROGS[o].end-r.PROGS[o].start+1}블록</span>`+(r.CALLS[o]&&r.CALLS[o].size?` → ${[...r.CALLS[o]].join(", ")}`:"")).join("<br>")}</td></tr>
+    <tr><td>실행 시작</td><td>${(CFG.startAtMarker&&r.STARTLINE!==null)?`(${CFG.startMarker.toUpperCase()}) 라인 ${r.STARTLINE+1} · 앞 ${r.PRESCAN.blocks}블록 제외`+(r.PRESCAN.g266?` · G266 ${r.PRESCAN.g266}`:""):"선두부터"}</td></tr>
+    <tr><td>종료</td><td>${s.endCode?`<b>${s.endCode}</b> — 이후 블록 미실행, 절단 장면 정지`:'<span class="est">종료 코드 없음</span>'}</td></tr>
+    <tr><td>G / M 빈도</td><td>${t(gf)}<br>${t(mf)}</td></tr>
+    <tr><td>파싱 실측</td><td>G0T0 ${s.g0t0} · GOTO ${s.goto} · '/' ${s.opt} · 드웰 ${s.dwell} · M98 ${s.m98} · M99 ${s.m99} · G32 ${s.g32} · 원호 ${s.arc} · Y/C ${s.axis} · 소수점없음 ${s.noDec}</td></tr>
+    <tr><td>서브 순증분</td><td>${Object.keys(r.B.subNet).map(k=>{const n=r.B.subNet[k],ok=Math.abs(n.u)<1e-6&&Math.abs(n.w)<1e-6;
+      return `<span class="${ok?"ok":"no"}">${k}: U ${n.u.toFixed(3)}/W ${n.w.toFixed(3)}</span>`;}).join(" · ")}</td></tr>
+    <tr><td>동작/시간</td><td>${r.B.ops.length} op · ${r.TOTAL.toFixed(1)} s</td></tr>
+    <tr><td>최종 형상</td><td>전장 ${m.len.toFixed(2)} · 외경 ø${m.shaft.toFixed(3)} · 골경 ø${m.root.toFixed(3)} · 헤드 ø${m.head.toFixed(3)} · ${m.sep?"분리 완료":"미분리"}</td></tr>
+    <tr><td>CUT-OFF</td><td>${r.CUTINFO?`지령 Z${r.CUTINFO.zProg} + 오프셋 ${r.CUTINFO.zOff} → Z${r.CUTINFO.z.toFixed(2)} · 날폭 ${r.CUTINFO.w} ${r.CUTINFO.side} → 부품 후단 Z${r.CUTINFO.partRear}`:"없음"}</td></tr>
+    <tr><td>공구 G32 거리</td><td>${Object.keys(r.TOOLDIST).map(k=>`${k} ${r.TOOLDIST[k].toFixed(1)} mm`).join(" · ")||"—"}</td></tr>
+    <tr><td>경고</td><td class="${r.B.warn.length?"no":"ok"}">${r.B.warn.length?r.B.warn.join("<br>"):"없음"}</td></tr></table>
+    <table><tr><th>나사 구간</th><th>공구</th><th>서브</th><th>콜</th><th>줄/리드/피치</th><th>전깊이 Z</th><th>접촉/정경</th><th>오버랩</th><th>위상</th><th>깊이</th><th>골경</th><th>G32</th></tr>${segRows||'<tr><td colspan="12">없음</td></tr>'}</table>`;
+  };
+  $("mbox").innerHTML=`<h3>해석 리포트</h3>
+  <h4><span class="tagA">① 기준</span></h4>${secOf(RA)}
+  <h4><span class="tagB">② 변환</span></h4>${secOf(RB)}`;
+  $("modal").classList.add("on");
+};
+
+/* ── 검증표 ── */
+function showVerify(){
+  if(!RB.loaded){
+    $("mbox").innerHTML=`<h3>검증표</h3><p>② 비교 프로그램을 넣으면 ①과 비교합니다.</p>
+    <p style="color:var(--dim)">현재 ① 만 로드되어 있습니다. <b>📂 ② 변환</b> 버튼 또는 창에 파일을 드래그해서 넣으세요.</p>`;
+    $("modal").classList.add("on");return;
+  }
+  const lab=verdictLabel();
+  const cls={same:"ok",near:"est",diff:"no"}[DIFF.verdict];
+  const rows=[];
+  const cmp=(n,a,b,tol,fmt)=>{
+    const f=fmt||(v=>v===null||v===undefined?"—":(typeof v==="number"?v.toFixed(3):String(v)));
+    const same=(typeof a==="number"&&typeof b==="number")?Math.abs(a-b)<=tol:String(a)===String(b);
+    rows.push(`<tr><td class="${same?"ok":"no"}">${same?"✔":"✖"}</td><td>${n}</td><td>${f(a)}</td><td>${f(b)}</td>
+      <td>${(typeof a==="number"&&typeof b==="number")?((b-a>=0?"+":"")+(b-a).toFixed(3)):"—"}</td></tr>`);
+  };
+  const dref=v=>v>0?` <span style="color:var(--dim)">(도면 ${v})</span>`:"";
+  cmp(`나사 외경 ø${dref(DWG.crestDia)}`,RA.FINAL.shaft,RB.FINAL.shaft,CFG.tol*2);
+  cmp(`나사 골경 ø${dref(DWG.rootDia)}`,RA.FINAL.root,RB.FINAL.root,CFG.tol*2);
+  cmp(`나사 깊이(반경)${dref(+((DWG.crestDia-DWG.rootDia)/2).toFixed(3))}`,
+      (RA.FINAL.shaft-RA.FINAL.root)/2,(RB.FINAL.shaft-RB.FINAL.root)/2,CFG.tol);
+  cmp(`헤드 최대경 ø${dref(DWG.headDia)}`,RA.FINAL.head,RB.FINAL.head,CFG.tol*2);
+  cmp(`전장${dref(DWG.len)}`,RA.FINAL.len,RB.FINAL.len,CFG.tol*2);
+  cmp("부품 분리",RA.FINAL.sep?"완료":"미분리",RB.FINAL.sep?"완료":"미분리",0);
+  cmp("절단 Z",RA.CUTINFO?RA.CUTINFO.z:null,RB.CUTINFO?RB.CUTINFO.z:null,CFG.tol*2);
+  const segA=Object.keys(RA.SEGDATA),segB=Object.keys(RB.SEGDATA);
+  cmp("나사 구간 수",segA.length,segB.length,0,v=>String(v));
+  const all=[...new Set([...segA,...segB])];
+  const segRows=all.map(n=>{
+    const a=RA.SEGDATA[n],b=RB.SEGDATA[n];
+    const f=(x,k,d)=>x?(typeof x[k]==="number"?x[k].toFixed(d||2):x[k]):"—";
+    const ok=a&&b&&a.calls===b.calls&&Math.abs(a.lead-b.lead)<1e-6&&a.nStarts===b.nStarts
+      &&Math.abs(a.constLen-b.constLen)<0.06&&Math.abs(a.g32-b.g32)<Math.max(2,a.g32*0.02);
+    return `<tr><td class="${ok?"ok":"no"}">${ok?"✔":"✖"}</td><td><b>${n}</b></td>
+      <td>${f(a,"calls")} / ${f(b,"calls")}</td>
+      <td>${a?a.nStarts:"—"}·${f(a,"lead")} / ${b?b.nStarts:"—"}·${f(b,"lead")}</td>
+      <td>${f(a,"constLen")} / ${f(b,"constLen")}</td>
+      <td>${f(a,"depth",3)} / ${f(b,"depth",3)}</td>
+      <td>${a&&a.rootDia?"ø"+a.rootDia.toFixed(3):"—"} / ${b&&b.rootDia?"ø"+b.rootDia.toFixed(3):"—"}</td>
+      <td>${f(a,"g32",1)} / ${f(b,"g32",1)}</td></tr>`;
+  }).join("");
+  const tdA=RA.TOOLDIST,tdB=RB.TOOLDIST;
+  const tools=[...new Set([...Object.keys(tdA),...Object.keys(tdB)])];
+  $("mbox").innerHTML=`<h3>형상 비교 검증표</h3>
+  <div style="font-size:var(--fs-num);font-weight:700;margin:.2em 0" class="${cls}">
+    ${verdictMark()} ${lab}</div>
+  <div style="display:flex;gap:1.3em;align-items:baseline;margin:.3em 0;flex-wrap:wrap">
+    <div><div style="font-size:calc(var(--fs-num)*1.4);font-weight:700" class="${cls}">${DIFF.totPct.toFixed(1)}%</div>
+      <div style="color:var(--dim)"><b>종합 일치율 = 형상 × 윤곽</b></div></div>
+    <div><div style="font-size:var(--fs-num);font-weight:700">${DIFF.volPct.toFixed(1)}%</div>
+      <div style="color:var(--dim)">형상 (회전체 부피 IoU)</div></div>
+    <div><div style="font-size:var(--fs-num);font-weight:700">${DIFF.profPct.toFixed(1)}%</div>
+      <div style="color:var(--dim)">윤곽 (1−Σ|Δr|/Σr)</div></div>
+    <div><div style="font-size:var(--fs-num);font-weight:700">${DIFF.zonePct.toFixed(1)}%</div>
+      <div style="color:var(--dim)">구간 (허용 내 Z 길이)</div></div>
+    <div><div style="font-size:var(--fs-num);font-weight:700" class="${DIFF.pathPct>=99.5?"ok":DIFF.pathPct>=95?"est":"no"}">${DIFF.pathPct.toFixed(1)}%</div>
+      <div style="color:var(--dim)">형성 구간 (형상 만든 절삭)</div></div>
+  </div>
+  <p style="color:var(--dim)">종합 일치율 = 형상 ${DIFF.volPct.toFixed(2)}% × 윤곽 ${DIFF.profPct.toFixed(2)}% / 100 = <b>${DIFF.totPct.toFixed(2)}%</b>
+     — 회전체 부피(형상)와 외곽선 이탈량(윤곽) 두 지표만으로 퍼센트를 냅니다.</p>
+  <h4>다른 부분 — 치수가 어떻게 다른가 (최종 형상 기준)</h4>
+  <table><tr><th>#</th><th>Z 구간</th><th>길이 mm</th><th>① ø</th><th>② ø</th><th>Δø (②−①)</th><th>판정</th></tr>
+  ${DIFF.zones.length?DIFF.zones.slice().sort((x,y)=>Math.abs(y.dd)-Math.abs(x.dd)).slice(0,12).map(z=>
+    `<tr><td>${z.no}</td><td>Z${z.a.toFixed(2)} ~ Z${z.b.toFixed(2)}</td><td>${z.len.toFixed(2)}</td>
+     <td>${z.dA.toFixed(3)}</td><td>${z.dB.toFixed(3)}</td>
+     <td class="${z.sgn<0?"under":"over"}">${(z.dd>0?"+":"")+z.dd.toFixed(3)}</td>
+     <td class="${z.sgn<0?"under":"over"}">② ${z.kind} (${z.sgn<0?"더 깎임":"덜 깎임"})</td></tr>`).join("")
+   +(DIFF.zones.length>12?`<tr><td colspan="7" style="color:var(--dim)">… 외 ${DIFF.zones.length-12}구간</td></tr>`:"")
+   :'<tr><td colspan="7" class="ok">허용 초과 구간 없음 — 최종 형상 치수 동일</td></tr>'}
+  </table>
+  <p>Δø = ②의 직경 − ①의 직경 ·
+     <span class="dlg"><i style="background:var(--over)"></i><b class="over">+ 과대 (② 가 덜 깎임)</b></span> ·
+     <span class="dlg"><i style="background:var(--under)"></i><b class="under">− 과소 (② 가 더 깎임)</b></span></p>
+  <p style="color:var(--dim)">공구 OFFSET 보정 폭 <b>±${CFG.ofs} mm (직경)</b> 안의 치수차는 장비에서 오프셋만 돌려 맞출 수 있으므로
+     <b class="ok">100%</b> 로 처리합니다. 위 표에는 이 폭을 <b>넘은</b> 구간만 나옵니다
+     (실측 최대 치수차 Δø${DIFF.maxRawDia.toFixed(3)} @Z${DIFF.maxRawZ}${DIFF.bandLen>0?` · 보정 범위 내 차이 ${DIFF.bandLen.toFixed(2)} mm`:""}).</p>
+  <p>최대 |Δr| <b>${DIFF.maxD.toFixed(4)} mm</b>${DIFF.maxZ!==null?` @ Z${DIFF.maxZ}`:""} · RMS ${DIFF.rms.toFixed(4)} mm ·
+     허용 ±${CFG.tol} mm · 허용 초과 <b>${DIFF.overLen.toFixed(2)} / ${DIFF.matLen.toFixed(2)} mm</b>
+     ${DIFF.over?`(Z${DIFF.firstZ} ~ Z${DIFF.lastZ})`:""}</p>
+  <p>경로(형성 구간) 일치율 <b class="${DIFF.pathPct>=99.5?"ok":DIFF.pathPct>=95?"est":"no"}">${DIFF.pathPct.toFixed(2)}%</b>
+     — <b>최종 형상을 만든 절삭 구간</b>만 비교합니다 (① ${DIFF.pathLenA.toFixed(2)} mm / ② ${DIFF.pathLenB.toFixed(2)} mm · 공통 ${DIFF.pathLenI.toFixed(2)} mm).
+     공중 이송·여유 로칭 패스, 블록/수식 개수 차이는 최종 면에 남지 않으므로 퍼센트에 반영하지 않습니다.
+     ${DIFF.pathPct<99.95
+       ?`<b>안 깎인(형성되지 않은) 구간 ${(DIFF.pathLenU-DIFF.pathLenI).toFixed(2)} mm 가 있습니다 — 소재가 그대로 남은 자리입니다.</b>`
+       :"두 프로그램이 결국 같은 면을 만들었습니다."}</p>
+  <p>판정 근거 — 프로파일 최대차 ${DIFF.maxD<=CFG.tol?'<span class="ok">허용 내</span>':DIFF.maxD<=CFG.tol*3?'<span class="est">허용 3배 내</span>':'<span class="no">허용 초과</span>'} ·
+     경로 ${DIFF.pathPct>=99.5?'<span class="ok">동일</span>':DIFF.pathPct>=95?'<span class="est">근사</span>':'<span class="no">다름</span>'} ·
+     대표 치수 ${DIFF.dimBad?`<span class="no">불일치 ${DIFF.dimBad}건</span>`:'<span class="ok">일치</span>'} ·
+     나사 구간 수 ${DIFF.segBad?'<span class="no">불일치</span>':'<span class="ok">일치</span>'} ·
+     부품 분리 ${DIFF.sepBad?'<span class="no">불일치</span>':'<span class="ok">일치</span>'}</p>
+  <p style="color:var(--dim)">Δr = 반경 차이(②−①). 2D 회전 단면 기준이므로 Y/C 축 밀링(플루트) 차이는 나타나지 않습니다.
+     블록 수·추정 시간 차이는 판정에 반영하지 않습니다 — 같은 형상을 다른 블록으로 만들 수 있기 때문입니다.</p>
+  <h4>최종 형상 치수 검증</h4>
+  <table><tr><th style="width:2em"></th><th>항목</th><th>①</th><th>②</th><th>Δ</th></tr>
+  ${rows.join("")}
+  <tr><td class="${RA.B.ops.length===RB.B.ops.length?"ok":"est"}">${RA.B.ops.length===RB.B.ops.length?"✔":"△"}</td>
+    <td>실행 동작 수</td><td>${RA.B.ops.length}</td><td>${RB.B.ops.length}</td><td>${RB.B.ops.length-RA.B.ops.length}</td></tr>
+  <tr><td class="${Math.abs(RA.TOTAL-RB.TOTAL)<0.5?"ok":"est"}">${Math.abs(RA.TOTAL-RB.TOTAL)<0.5?"✔":"△"}</td>
+    <td>추정 시간 s</td><td>${RA.TOTAL.toFixed(1)}</td><td>${RB.TOTAL.toFixed(1)}</td><td>${(RB.TOTAL-RA.TOTAL).toFixed(1)}</td></tr>
+  <tr><td class="${(RA.B.stat.endCode||"-")===(RB.B.stat.endCode||"-")?"ok":"est"}">${(RA.B.stat.endCode||"-")===(RB.B.stat.endCode||"-")?"✔":"△"}</td>
+    <td>종료 코드</td><td>${RA.B.stat.endCode||"없음"}</td><td>${RB.B.stat.endCode||"없음"}</td><td>—</td></tr>
+  </table>
+  <h4>나사 구간 (①/②)</h4>
+  <table><tr><th style="width:2em"></th><th>구간</th><th>콜</th><th>줄·리드</th><th>정경 길이</th><th>깊이</th><th>골경</th><th>G32 mm</th></tr>
+  ${segRows||'<tr><td colspan="8">없음</td></tr>'}</table>
+  <h4>공구별 G32 절삭 거리 (①/②)</h4>
+  <table><tr><th style="width:2em"></th><th>공구</th><th>①</th><th>②</th><th>Δ</th></tr>
+  ${tools.map(k=>{const a=tdA[k]||0,b=tdB[k]||0,ok=Math.abs(a-b)<Math.max(2,a*0.02);
+    return `<tr><td class="${ok?"ok":"no"}">${ok?"✔":"✖"}</td><td>${k} ${tool(k).name}</td>
+    <td>${a.toFixed(1)}</td><td>${b.toFixed(1)}</td><td>${(b-a).toFixed(1)}</td></tr>`;}).join("")||'<tr><td colspan="5">없음</td></tr>'}
+  </table>`;
+  $("modal").classList.add("on");
+}
+$("bVer").onclick=showVerify;
+
+/* ============================================================================
+   10. 시작
+   ========================================================================== */
+/* 공개판은 내장 프로그램이 없다. ①② 모두 사용자가 넣는다. */
+const BUILTIN=/*__PROGRAMS__*/[];
+if(BUILTIN.length)loadInto(RA,BUILTIN,true);
+setTheme("light");
+if(BUILTIN.length){rebuildAll();}
+else{renderCode();buildChips();buildInfeed();renderVerdict();renderWarns();updateHeader();}
+resize();
+setPlayBtn();
+drawWelcome();
+</script>
+</body>
+</html>
